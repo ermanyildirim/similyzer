@@ -28,27 +28,28 @@ class PlotlyVisualizer:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
+    def _ensure_similarity(self):
+        if self.analyzer.similarity_matrix is None:
+            self.analyzer.calculate_similarity()
+
     ###### Public API ######
 
     def create_similarity_network(self, threshold):
-        analyzer = self.analyzer
+        self._ensure_similarity()
 
-        if analyzer.similarity_matrix is None:
-            analyzer.calculate_similarity()
-
-        num_nodes = len(analyzer.sentences)
-        if analyzer.cluster_labels is None and num_nodes >= 2:
+        num_nodes = len(self.analyzer.sentences)
+        if self.analyzer.cluster_labels is None and num_nodes >= 2:
             try:
-                analyzer.perform_clustering(None)
+                self.analyzer.perform_clustering(None)
             except Exception:
                 pass  # Continue without clusters if clustering fails
 
         if num_nodes == 0:
             return self._empty_figure("No texts")
         if num_nodes == 1:
-            return self._single_node_network(analyzer.reduce_dimensions())
+            return self._single_node_network(self.analyzer.reduce_dimensions())
 
-        similarity = analyzer.similarity_matrix.astype(np.float32)
+        similarity = self.analyzer.similarity_matrix.astype(np.float32)
         coordinates = self._compute_network_layout(similarity, threshold)
         node_stats = self._compute_node_stats(similarity, threshold)
 
@@ -56,7 +57,7 @@ class PlotlyVisualizer:
             similarity, coordinates[:, 0], coordinates[:, 1], threshold
         )
 
-        labels = analyzer.cluster_labels
+        labels = self.analyzer.cluster_labels
         if labels is None or len(labels) != num_nodes:
             labels = np.zeros(num_nodes, dtype=np.int32)
 
@@ -75,8 +76,7 @@ class PlotlyVisualizer:
         )
 
     def compute_network_stats(self, threshold):
-        if self.analyzer.similarity_matrix is None:
-            self.analyzer.calculate_similarity()
+        self._ensure_similarity()
         node_stats = self._compute_node_stats(
             self.analyzer.similarity_matrix.astype(np.float32), threshold
         )
@@ -106,16 +106,13 @@ class PlotlyVisualizer:
         )
 
     def create_top_pairs_chart(self, num_pairs):
-        analyzer = self.analyzer
+        self._ensure_similarity()
 
-        if analyzer.similarity_matrix is None:
-            analyzer.calculate_similarity()
-
-        num_texts = len(analyzer.sentences)
+        num_texts = len(self.analyzer.sentences)
         if num_texts < 2:
             return self._empty_figure("Need at least 2 texts")
 
-        similarity = analyzer.similarity_matrix
+        similarity = self.analyzer.similarity_matrix
         row_index, column_index = np.triu_indices(num_texts, k=1)
         similarities = similarity[row_index, column_index]
         k = min(int(num_pairs), len(similarities))
@@ -473,7 +470,8 @@ class PlotlyVisualizer:
             similarities.tolist(),
         )
         labels = [f"Text {s + 1} - Text {t + 1}" for s, t in zip(sources, targets)]
-        def fmt(text):
+
+        def format_hover(text):
             return format_sentence_for_hover(
                 text,
                 max_width=config.HOVER_WIDTH_EXTENDED,
@@ -483,8 +481,8 @@ class PlotlyVisualizer:
 
         hovers = [
             f"<b>Text {s + 1} - Text {t + 1}</b><br><br>"
-            f"<b>Text {s + 1}:</b><br>{fmt(sentences[s])}<br><br>"
-            f"<b>Text {t + 1}:</b><br>{fmt(sentences[t])}<br><br>"
+            f"<b>Text {s + 1}:</b><br>{format_hover(sentences[s])}<br><br>"
+            f"<b>Text {t + 1}:</b><br>{format_hover(sentences[t])}<br><br>"
             f"<b>Cosine similarity:</b> {v:.3f}"
             for s, t, v in zip(sources, targets, similarities)
         ]
