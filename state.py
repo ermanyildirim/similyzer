@@ -65,26 +65,23 @@ def count_tokens(tokenizer, text, cap=None):
     if tokenizer is None:
         return 0
 
+    use_truncation = cap is not None and cap > 0
+
+    kwargs = {"add_special_tokens": True, "truncation": use_truncation}
+    if use_truncation:
+        kwargs["max_length"] = cap + 1
+
+    # Primary encoding with full options
     try:
-        if cap and cap > 0:
-            token_ids = tokenizer.encode(
-                text,
-                add_special_tokens=True,
-                truncation=True,
-                max_length=cap + 1,
-            )
-        else:
-            token_ids = tokenizer.encode(
-                text,
-                add_special_tokens=True,
-                truncation=False,
-            )
-        return len(token_ids)
+        return len(tokenizer.encode(text, **kwargs))
     except (TypeError, AttributeError):
-        try:
-            return len(tokenizer.encode(text))
-        except (TypeError, AttributeError):
-            return 0
+        pass
+
+    # Fallback for simpler tokenizers
+    try:
+        return len(tokenizer.encode(text))
+    except (TypeError, AttributeError):
+        return 0
 
 
 def compute_token_stats(analyzer, texts):
