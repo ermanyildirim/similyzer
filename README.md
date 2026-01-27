@@ -24,4 +24,4 @@ streamlit run app.py
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE) for details.
+MIT
