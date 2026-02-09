@@ -7,7 +7,6 @@ from sklearn.metrics import calinski_harabasz_score, silhouette_score
 
 import config
 from utils import (
-    compute_content_hash,
     normalize_coordinates,
     normalize_whitespace,
     upper_triangle,
@@ -34,8 +33,6 @@ class SentenceAnalyzer:
         self.embeddings = None
         self.similarity_matrix = None
 
-        # PCA cache
-        self._pca_cache_key = None
         self._pca_coordinates = None
 
         # Clustering results
@@ -94,22 +91,16 @@ class SentenceAnalyzer:
 
     def reduce_dimensions(self):
         """Reduce embeddings to 2D using PCA for visualization."""
+        if self._pca_coordinates is not None:
+            return self._pca_coordinates
+
         if self.embeddings is None:
             self.get_embeddings()
 
         num_sentences = len(self.sentences)
 
         if num_sentences < 2:
-            coordinates = np.array([[0.0, 0.0]], dtype=np.float32)
-            self._pca_cache_key = self._get_cache_key()
-            self._pca_coordinates = coordinates
-            return coordinates
-
-        cache_key = self._get_cache_key()
-        is_cached = (
-            cache_key == self._pca_cache_key and self._pca_coordinates is not None
-        )
-        if is_cached:
+            self._pca_coordinates = np.array([[0.0, 0.0]], dtype=np.float32)
             return self._pca_coordinates
 
         num_components = min(2, self.embeddings.shape[1], num_sentences)
@@ -123,9 +114,7 @@ class SentenceAnalyzer:
 
         coordinates = normalize_coordinates(coordinates)
 
-        self._pca_cache_key = cache_key
         self._pca_coordinates = coordinates
-
         return coordinates
 
     def perform_clustering(self, num_clusters, max_clusters=None):
@@ -265,7 +254,6 @@ class SentenceAnalyzer:
     def _reset_all(self):
         self.embeddings = None
         self.similarity_matrix = None
-        self._pca_cache_key = None
         self._pca_coordinates = None
         self.cluster_labels = None
         self.silhouette = None
@@ -273,5 +261,3 @@ class SentenceAnalyzer:
         self.avg_within_cluster = None
         self.avg_between_clusters = None
 
-    def _get_cache_key(self):
-        return compute_content_hash(self.model_name, self.sentences)
