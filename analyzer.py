@@ -6,11 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
 
 import config
-from utils import (
-    normalize_coordinates,
-    normalize_whitespace,
-    upper_triangle,
-)
+from utils import normalize_whitespace, upper_triangle
 
 
 @st.cache_resource(show_spinner=False)
@@ -83,8 +79,6 @@ class SentenceAnalyzer:
             self.get_embeddings()
 
         similarity_matrix = np.dot(self.embeddings, self.embeddings.T)
-        np.fill_diagonal(similarity_matrix, 1.0)
-        similarity_matrix = np.clip(similarity_matrix, -1.0, 1.0)
 
         self.similarity_matrix = similarity_matrix
         return similarity_matrix
@@ -111,8 +105,6 @@ class SentenceAnalyzer:
         if coordinates.shape[1] == 1:
             zeros_column = np.zeros(num_sentences, dtype=np.float32)
             coordinates = np.column_stack([coordinates[:, 0], zeros_column])
-
-        coordinates = normalize_coordinates(coordinates)
 
         self._pca_coordinates = coordinates
         return coordinates
