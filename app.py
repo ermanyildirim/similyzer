@@ -329,7 +329,8 @@ def main():
     init_state()
 
     # Sidebar controls
-    model_name, num_clusters, threshold = render_sidebar_controls()
+    num_clusters, threshold = render_sidebar_controls()
+    model_name = config.MODEL_NAME
 
     # Header row: input actions and stats title
     header_left, header_right = st.columns([3, 1])

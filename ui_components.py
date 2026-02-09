@@ -1,6 +1,5 @@
 import streamlit as st
 
-import config
 from state import (
     STATE_INPUT_TEXT,
     STATE_TOKEN_STATS,
@@ -37,7 +36,7 @@ def render_sidebar_controls():
             key="threshold",
         )
 
-    return (config.MODEL_NAME, num_clusters, threshold)
+    return (num_clusters, threshold)
 
 
 def render_input_actions(sample_text):
