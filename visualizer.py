@@ -215,7 +215,7 @@ class PlotlyVisualizer:
             layout_options["xaxis"] = axis_style
             layout_options["yaxis"] = axis_style
         if show_legend:
-            layout_options["legend"] = config.LEGEND_CONFIG
+            layout_options["legend"] = {"title": "Clusters", "orientation": "v"}
         fig.update_layout(**layout_options)
         return fig
 
@@ -427,7 +427,10 @@ class PlotlyVisualizer:
             )
         )
         return self._apply_layout(
-            fig, "Similarity Network", axis_style=config.HIDDEN_AXIS, hover_font=14
+            fig,
+            "Similarity Network",
+            axis_style={"showgrid": False, "zeroline": False, "showticklabels": False},
+            hover_font=14,
         )
 
     # ====================================================================

@@ -53,14 +53,6 @@ GRID_AXIS = {
     "gridcolor": "rgba(255,255,255,0.1)",
 }
 
-HIDDEN_AXIS = {
-    "showgrid": False,
-    "zeroline": False,
-    "showticklabels": False,
-}
-
-LEGEND_CONFIG = {"title": "Clusters", "orientation": "v"}
-
 # ============================================================================
 # Color Palette
 # ============================================================================
