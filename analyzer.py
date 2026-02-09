@@ -87,10 +87,6 @@ class SentenceAnalyzer:
         pca = PCA(n_components=num_components, random_state=config.RANDOM_SEED)
         coordinates = pca.fit_transform(self.embeddings)
 
-        if coordinates.shape[1] == 1:
-            zeros_column = np.zeros(num_sentences, dtype=np.float32)
-            coordinates = np.column_stack([coordinates[:, 0], zeros_column])
-
         self._pca_coordinates = coordinates
         return coordinates
 
