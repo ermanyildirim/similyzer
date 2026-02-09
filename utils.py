@@ -77,12 +77,12 @@ def upper_triangle(matrix):
     return matrix[row_index, column_index]
 
 
-def normalize_coordinates(coordinates, epsilon=1e-10):
+def normalize_coordinates(coordinates):
     """Normalize coordinates to zero mean and unit variance."""
     coordinates = np.asarray(coordinates, dtype=np.float32)
     mean = coordinates.mean(axis=0)
     standard_deviation = coordinates.std(axis=0)
-    standard_deviation = np.where(standard_deviation < epsilon, 1.0, standard_deviation)
+    standard_deviation = np.where(standard_deviation < 1e-10, 1.0, standard_deviation)
     return (coordinates - mean) / standard_deviation
 
 
