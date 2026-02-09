@@ -3,15 +3,6 @@
 # ============================================================================
 
 MODEL_NAME = "all-MiniLM-L6-v2"
-MODEL_ORG = "sentence-transformers"
-
-# ============================================================================
-# External URLs
-# ============================================================================
-
-HF_BASE_URL = "https://huggingface.co"
-SBERT_URL = "https://www.sbert.net/"
-LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
 
 # ============================================================================
 # Input Limits

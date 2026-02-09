@@ -8,39 +8,11 @@ from state import (
     reset_analysis,
 )
 
-def _render_sidebar_links():
-    model_url = f"{config.HF_BASE_URL}/{config.MODEL_ORG}/{config.MODEL_NAME}"
-    link_style = "color:rgba(255,255,255,0.95); text-decoration:underline;"
-    sidebar_html = f"""
-    <div style="text-align:center; font-size:0.95rem; margin-top:0.5rem;">
-        <div style="margin-bottom:0.25rem;">
-            <span style="font-weight:800;">Model card:</span>
-            <a href="{model_url}" target="_blank" style="{link_style}">{config.MODEL_NAME}</a>
-        </div>
-        <div style="margin-bottom:0.25rem;">
-            <span style="font-weight:800;">Framework:</span>
-            <a href="{config.SBERT_URL}" target="_blank" style="{link_style}">SentenceTransformers</a>
-        </div>
-        <div>
-            <span style="font-weight:800;">License:</span>
-            <a href="{config.LICENSE_URL}" target="_blank" style="{link_style}">Apache‑2.0</a>
-        </div>
-    </div>
-    """
-    st.markdown(sidebar_html, unsafe_allow_html=True)
-
-
 def render_sidebar_controls():
     """Render sidebar controls and return user settings."""
     with st.sidebar:
         st.markdown(
-            "<div class='sidebar-center-title'><i class='fa-solid fa-cube'></i> Model</div>",
-            unsafe_allow_html=True,
-        )
-        _render_sidebar_links()
-
-        st.markdown(
-            "<div class='sidebar-center-title' style='margin-top:2rem;margin-bottom:1rem;'>"
+            "<div class='sidebar-center-title'>"
             "<i class='fa-solid fa-circle-nodes'></i> Clustering</div>",
             unsafe_allow_html=True,
         )
