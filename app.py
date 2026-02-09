@@ -89,7 +89,7 @@ def handle_analyze_click(
         return
 
     # Validate input count
-    if len(texts) < 1:
+    if not texts:
         st.error("Please enter at least 1 text.")
         return
 
