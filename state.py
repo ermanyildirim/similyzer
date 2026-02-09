@@ -65,79 +65,50 @@ def count_tokens(tokenizer, text, cap=None):
     if tokenizer is None:
         return 0
 
-    use_truncation = cap is not None and cap > 0
-
-    kwargs = {"add_special_tokens": True, "truncation": use_truncation}
-    if use_truncation:
+    kwargs = {"add_special_tokens": True}
+    if cap is not None and cap > 0:
+        kwargs["truncation"] = True
         kwargs["max_length"] = cap + 1
 
-    # Primary encoding with full options
-    try:
-        return len(tokenizer.encode(text, **kwargs))
-    except (TypeError, AttributeError):
-        pass
-
-    # Fallback for simpler tokenizers
-    try:
-        return len(tokenizer.encode(text))
-    except (TypeError, AttributeError):
-        return 0
-
-
-def compute_token_stats(analyzer, texts):
-    # Validate model and tokenizer
-    model = getattr(analyzer, "model", None)
-    if model is None:
-        return None
-
-    tokenizer = getattr(model, "tokenizer", None)
-    if tokenizer is None:
-        return None
-
-    # Setup token limits
-    model_max_tokens = int(getattr(model, "max_seq_length", 0) or 0)
-    token_cap = model_max_tokens
-
-    # Count tokens for each text
-    token_lengths = []
-    overlimit_indices = []
-
-    for i, raw_text in enumerate(texts):
-        processed = normalize_whitespace(raw_text)
-        count = count_tokens(tokenizer, processed, cap=token_cap)
-        token_lengths.append(count)
-
-        if 0 < model_max_tokens < count:
-            overlimit_indices.append(i)
-
-    # Compute max token info
-    if not token_lengths:
-        max_tokens = 0
-        max_indices = []
-    else:
-        max_tokens = max(token_lengths)
-        max_indices = [
-            i for i, count in enumerate(token_lengths) if count == max_tokens
-        ]
-
-    return {
-        "max_tokens": max_tokens,
-        "model_max": model_max_tokens,
-        "too_long": len(overlimit_indices),
-        "too_long_lines": overlimit_indices,
-        "max_line_indices": max_indices,
-    }
+    return len(tokenizer.encode(text, **kwargs))
 
 
 def update_token_stats(analyzer, texts, current_hash):
-    """Update token statistics if input hash has changed."""
+    """Compute and cache token statistics. Returns stats dict or None."""
     existing_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
     existing_stats = st.session_state.get(STATE_TOKEN_STATS)
 
     if existing_hash == current_hash and existing_stats is not None:
         return existing_stats
 
-    stats = compute_token_stats(analyzer, texts)
+    model = getattr(analyzer, "model", None)
+    tokenizer = getattr(model, "tokenizer", None) if model else None
+    if tokenizer is None:
+        return None
+
+    model_max = int(getattr(model, "max_seq_length", 0) or 0)
+
+    token_lengths = []
+    overlimit_indices = []
+
+    for i, raw_text in enumerate(texts):
+        processed = normalize_whitespace(raw_text)
+        count = count_tokens(tokenizer, processed, cap=model_max)
+        token_lengths.append(count)
+        if 0 < model_max < count:
+            overlimit_indices.append(i)
+
+    max_tokens = max(token_lengths) if token_lengths else 0
+    max_indices = [i for i, c in enumerate(token_lengths) if c == max_tokens] if token_lengths else []
+
+    stats = {
+        "max_tokens": max_tokens,
+        "model_max": model_max,
+        "too_long": len(overlimit_indices),
+        "too_long_lines": overlimit_indices,
+        "max_line_indices": max_indices,
+    }
+
     st.session_state[STATE_TOKEN_STATS] = stats
     st.session_state[STATE_TOKEN_STATS_HASH] = current_hash
     return stats
