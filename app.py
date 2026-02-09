@@ -79,7 +79,6 @@ def run_full_analysis(model_name, texts, num_clusters):
     analyzer.calculate_similarity()
     analyzer.reduce_dimensions()
     analyzer.perform_clustering(num_clusters)
-    return analyzer
 
 
 def handle_analyze_click(

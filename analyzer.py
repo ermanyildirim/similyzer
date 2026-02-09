@@ -111,7 +111,7 @@ class SentenceAnalyzer:
         self._pca_coordinates = coordinates
         return coordinates
 
-    def perform_clustering(self, num_clusters, max_clusters=None):
+    def perform_clustering(self, num_clusters):
         """Perform K-Means clustering and compute quality metrics."""
         if self.embeddings is None:
             self.get_embeddings()
@@ -127,7 +127,7 @@ class SentenceAnalyzer:
             return self.cluster_labels
 
         if num_clusters is None:
-            self._auto_cluster(max_clusters)
+            self._auto_cluster()
         else:
             self._kmeans_cluster(int(num_clusters))
 
@@ -145,10 +145,10 @@ class SentenceAnalyzer:
             n_init=config.KMEANS_N_INIT,
         )
 
-    def _auto_cluster(self, max_clusters):
+    def _auto_cluster(self):
         """Select optimal cluster count using silhouette score."""
         num_samples = self.embeddings.shape[0]
-        upper_bound = min(max_clusters or config.DEFAULT_MAX_CLUSTERS, num_samples - 1)
+        upper_bound = min(config.DEFAULT_MAX_CLUSTERS, num_samples - 1)
 
         self.cluster_labels = np.zeros(num_samples, dtype=np.int32)
         self.silhouette = None
