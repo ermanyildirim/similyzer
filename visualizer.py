@@ -32,23 +32,12 @@ class PlotlyVisualizer:
     def __init__(self, analyzer):
         self.analyzer = analyzer
 
-    def _ensure_similarity(self):
-        if self.analyzer.similarity_matrix is None:
-            self.analyzer.calculate_similarity()
-
     # ====================================================================
     # Public API
     # ====================================================================
 
     def create_similarity_network(self, threshold):
-        self._ensure_similarity()
-
         num_nodes = len(self.analyzer.sentences)
-        if self.analyzer.cluster_labels is None and num_nodes >= 2:
-            try:
-                self.analyzer.perform_clustering(None)
-            except Exception:
-                pass  # Continue without clusters if clustering fails
 
         empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
 
@@ -67,8 +56,6 @@ class PlotlyVisualizer:
         )
 
         labels = self.analyzer.cluster_labels
-        if labels is None or len(labels) != num_nodes:
-            labels = np.zeros(num_nodes, dtype=np.int32)
 
         nodes = self._build_cluster_traces(
             coordinates[:, 0],
@@ -93,9 +80,6 @@ class PlotlyVisualizer:
 
     def create_cluster_visualization(self):
         """Create cluster visualization using PCA coordinates."""
-        if self.analyzer.cluster_labels is None:
-            self.analyzer.perform_clustering(None)
-
         coordinates = self.analyzer.reduce_dimensions()
         labels = np.asarray(self.analyzer.cluster_labels, dtype=np.int32)
 
@@ -111,8 +95,6 @@ class PlotlyVisualizer:
         )
 
     def create_top_pairs_chart(self, num_pairs):
-        self._ensure_similarity()
-
         num_texts = len(self.analyzer.sentences)
         if num_texts < 2:
             return self._empty_figure("Need at least 2 texts")
