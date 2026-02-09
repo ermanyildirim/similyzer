@@ -19,8 +19,8 @@ from ui_components import (
 from utils import (
     cluster_partitions,
     compute_content_hash,
-    pair_similarity_stats,
     parse_texts,
+    upper_triangle,
 )
 from visualizer import PlotlyVisualizer
 
@@ -134,7 +134,14 @@ def render_network_tab(analyzer, visualizer, threshold):
     if analyzer.similarity_matrix is None or len(analyzer.sentences) == 0:
         return
 
-    similarity_stats = pair_similarity_stats(analyzer.similarity_matrix)
+    pairwise = upper_triangle(analyzer.similarity_matrix)
+    if pairwise.size == 0:
+        avg_sim, min_sim, max_sim = 0.0, 0.0, 0.0
+    else:
+        avg_sim = float(pairwise.mean())
+        min_sim = float(pairwise.min())
+        max_sim = float(pairwise.max())
+
     network_stats = visualizer.compute_network_stats(threshold)
 
     # Row 1: Average and Maximum similarity
@@ -146,7 +153,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Average pair cosine similarity",
-            f"{similarity_stats['average']:.3f}",
+            f"{avg_sim:.3f}",
             help=average_help,
         )
     with column_maximum:
@@ -156,7 +163,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Maximum pair cosine similarity",
-            f"{similarity_stats['maximum']:.3f}",
+            f"{max_sim:.3f}",
             help=maximum_help,
         )
 
@@ -169,7 +176,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Minimum pair cosine similarity",
-            f"{similarity_stats['minimum']:.3f}",
+            f"{min_sim:.3f}",
             help=minimum_help,
         )
     with column_degree:

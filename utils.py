@@ -85,20 +85,6 @@ def normalize_coordinates(coordinates, epsilon=1e-10):
     return (coordinates - mean) / standard_deviation
 
 
-###### Statistics ######
-
-
-def pair_similarity_stats(similarity_matrix):
-    pairwise = upper_triangle(similarity_matrix)
-    if getattr(pairwise, "size", 0) == 0:
-        return {"average": 0.0, "minimum": 0.0, "maximum": 0.0}
-
-    return {
-        "average": float(pairwise.mean()),
-        "minimum": float(pairwise.min()),
-        "maximum": float(pairwise.max()),
-    }
-
 
 def cluster_partitions(cluster_labels):
     """Group text indices by cluster label."""
