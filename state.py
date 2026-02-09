@@ -34,15 +34,8 @@ def invalidate_analysis_state():
     st.session_state[STATE_TOKEN_STATS_HASH] = None
 
 
-def clear_analyzer_inputs():
-    analyzer = st.session_state.get(STATE_ANALYZER)
-    if analyzer is not None:
-        analyzer.add_sentences([])
-
-
 def reset_analysis():
     invalidate_analysis_state()
-    clear_analyzer_inputs()
 
 
 def get_analyzer(model_name):
