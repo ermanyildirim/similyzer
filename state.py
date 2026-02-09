@@ -106,9 +106,9 @@ def build_token_limit_error(token_stats):
     if not token_stats:
         return None
 
-    model_max = int(token_stats.get("model_max", 0) or 0)
-    overlimit_count = int(token_stats.get("too_long", 0) or 0)
-    overlimit_indices = token_stats.get("too_long_lines") or []
+    model_max = token_stats["model_max"]
+    overlimit_count = token_stats["too_long"]
+    overlimit_indices = token_stats["too_long_lines"]
 
     if model_max <= 0 or overlimit_count <= 0:
         return None

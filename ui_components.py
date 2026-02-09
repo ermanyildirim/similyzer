@@ -88,7 +88,7 @@ def _build_token_note(token_stats, model_max):
     if model_max > 0:
         note_parts.append(f"Limit: {model_max}")
 
-    max_line_indices = token_stats.get("max_line_indices") or []
+    max_line_indices = token_stats["max_line_indices"]
     if max_line_indices:
         line_numbers = [str(i + 1) for i in max_line_indices]
         shown = line_numbers[:5]
@@ -125,8 +125,8 @@ def render_stats_panel(texts, current_hash):
         st.markdown("<div class='token-line-note'>&nbsp;</div>", unsafe_allow_html=True)
         return
 
-    max_tokens = int(token_stats.get("max_tokens", 0) or 0)
-    model_max = int(token_stats.get("model_max", 0) or 0)
+    max_tokens = token_stats["max_tokens"]
+    model_max = token_stats["model_max"]
 
     if 0 < model_max < max_tokens:
         display_value = f"{model_max}+"
