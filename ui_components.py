@@ -50,18 +50,18 @@ def render_sidebar_controls():
         if not auto_cluster:
             num_clusters = st.slider(
                 "Number of clusters",
-                min_value=config.MIN_CLUSTERS,
-                max_value=config.MAX_CLUSTERS_SLIDER,
-                value=config.DEFAULT_CLUSTERS_SLIDER,
+                min_value=2,
+                max_value=10,
+                value=3,
                 step=1,
             )
 
         threshold = st.slider(
             "Network threshold (cosine similarity)",
-            min_value=config.THRESHOLD_MIN,
-            max_value=config.THRESHOLD_MAX,
-            value=config.THRESHOLD_DEFAULT,
-            step=config.THRESHOLD_STEP,
+            min_value=0.0,
+            max_value=1.0,
+            value=0.0,
+            step=0.05,
             key="threshold",
         )
 
@@ -105,9 +105,9 @@ def render_text_area():
         label="Input texts",
         key=STATE_INPUT_TEXT,
         label_visibility="collapsed",
-        height=config.TEXTAREA_HEIGHT,
+        height=350,
         placeholder=placeholder,
-        max_chars=config.TEXTAREA_MAX_CHARS,
+        max_chars=20000,
     )
 
 

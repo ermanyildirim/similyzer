@@ -25,49 +25,8 @@ MAX_SHOWN_LINES = 6
 # ============================================================================
 
 DEFAULT_MAX_CLUSTERS = 5
-MIN_CLUSTERS = 2
-MAX_CLUSTERS_SLIDER = 10
-DEFAULT_CLUSTERS_SLIDER = 3
 KMEANS_N_INIT = 10
 RANDOM_SEED = 42
-
-# ============================================================================
-# UI Controls
-# ============================================================================
-
-THRESHOLD_MIN = 0.0
-THRESHOLD_MAX = 1.0
-THRESHOLD_DEFAULT = 0.0
-THRESHOLD_STEP = 0.05
-TEXTAREA_HEIGHT = 350
-TEXTAREA_MAX_CHARS = 20000
-
-# ============================================================================
-# Chart Dimensions
-# ============================================================================
-
-CHART_HEIGHT = 600
-CHART_HEIGHT_SMALL = 450
-CHART_FONT_SIZE = 16
-
-# ============================================================================
-# Hover Formatting
-# ============================================================================
-
-HOVER_WIDTH_STANDARD = 70
-HOVER_WIDTH_EXTENDED = 80
-HOVER_LINES_STANDARD = 12
-HOVER_LINES_EXTENDED = 24
-HOVER_CHARS_STANDARD = 1400
-HOVER_CHARS_EXTENDED = 4000
-
-# ============================================================================
-# Node Visualization
-# ============================================================================
-
-NODE_SIZE_BASE = 20.0
-NODE_SIZE_SCALE = 40.0
-CLUSTER_MARKER_SIZE = 22.0
 
 
 # ============================================================================

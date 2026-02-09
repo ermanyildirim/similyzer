@@ -12,6 +12,10 @@ class PlotlyVisualizer:
 
     _ORIGIN_SIZE = 12
     _SINGLE_SIZE = 40
+    _NODE_SIZE_BASE = 20.0
+    _NODE_SIZE_SCALE = 40.0
+    _TEXT_FONT_SIZE = 16
+    _CHART_HEIGHT_SMALL = 450
 
     _ORIGIN_STYLE = {
         "color": "rgba(255,255,255,0.4)",
@@ -170,7 +174,7 @@ class PlotlyVisualizer:
             )
             fig.update_yaxes(tickfont={"size": 14}, row=1, col=col)
 
-        return self._apply_layout(fig, height=config.CHART_HEIGHT_SMALL, hover_font=14)
+        return self._apply_layout(fig, height=self._CHART_HEIGHT_SMALL, hover_font=14)
 
     ###### Private: Helpers ######
 
@@ -185,7 +189,7 @@ class PlotlyVisualizer:
             showarrow=False,
             font={"size": 20, "color": "gray"},
         )
-        return self._apply_layout(fig, height=config.CHART_HEIGHT_SMALL)
+        return self._apply_layout(fig, height=self._CHART_HEIGHT_SMALL)
 
     def _origin_marker(self):
         style = {**self._ORIGIN_STYLE, "size": self._ORIGIN_SIZE}
@@ -209,7 +213,7 @@ class PlotlyVisualizer:
     ):
         layout_options = {
             **config.BASE_LAYOUT,
-            "height": height or config.CHART_HEIGHT,
+            "height": height or 600,
             "dragmode": "pan",
             "modebar": config.MODEBAR_STYLE,
             "hoverlabel": {**self._HOVER_LABEL, "font_size": hover_font},
@@ -257,7 +261,7 @@ class PlotlyVisualizer:
         num_nodes = similarity.shape[0]
 
         if num_nodes <= 1:
-            default = config.NODE_SIZE_BASE + config.NODE_SIZE_SCALE
+            default = self._NODE_SIZE_BASE + self._NODE_SIZE_SCALE
             return {
                 "avg_similarity": [0.0],
                 "max_similarity": [0.0],
@@ -277,14 +281,14 @@ class PlotlyVisualizer:
         # Node sizes based on connection count
         connections = np.maximum((similarity > threshold).sum(axis=1) - 1, 0)
         ratio = connections / (num_nodes - 1)
-        sizes = (config.NODE_SIZE_BASE + ratio * config.NODE_SIZE_SCALE).tolist()
+        sizes = (self._NODE_SIZE_BASE + ratio * self._NODE_SIZE_SCALE).tolist()
 
         # Network-level stats
         degrees = connections.astype(np.float32)
         total_edges = num_nodes * (num_nodes - 1) / 2.0
         actual_edges = float(degrees.sum()) / 2.0
 
-        top_indices = np.argsort(degrees)[-config.TOP_NODES_COUNT :][::-1]
+        top_indices = np.argsort(degrees)[-3:][::-1]
         top_nodes = [
             (int(i) + 1, int(degrees[i])) for i in top_indices if degrees[i] > 0
         ]
@@ -396,7 +400,7 @@ class PlotlyVisualizer:
             if sizes is not None:
                 marker["size"] = sizes[mask]
             else:
-                marker["size"] = config.CLUSTER_MARKER_SIZE
+                marker["size"] = 22.0
             traces.append(
                 go.Scatter(
                     x=node_x[mask],
@@ -404,7 +408,7 @@ class PlotlyVisualizer:
                     mode="markers+text",
                     text=[f"Text {i + 1}" for i in indices],
                     textposition="top center",
-                    textfont={"size": config.CHART_FONT_SIZE, "color": "white"},
+                    textfont={"size": self._TEXT_FONT_SIZE, "color": "white"},
                     hoverinfo="text",
                     hovertext=hovers,
                     marker=marker,
@@ -426,7 +430,7 @@ class PlotlyVisualizer:
                 mode="markers+text",
                 text=["Text 1"],
                 textposition="top center",
-                textfont={"size": config.CHART_FONT_SIZE, "color": "white"},
+                textfont={"size": self._TEXT_FONT_SIZE, "color": "white"},
                 hoverinfo="text",
                 hovertext=[hover],
                 marker={
@@ -454,10 +458,7 @@ class PlotlyVisualizer:
 
         def format_hover(text):
             return format_sentence_for_hover(
-                text,
-                max_width=config.HOVER_WIDTH_EXTENDED,
-                max_lines=config.HOVER_LINES_EXTENDED,
-                max_chars=config.HOVER_CHARS_EXTENDED,
+                text, max_width=80, max_lines=24, max_chars=4000
             )
 
         hovers = [

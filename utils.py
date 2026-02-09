@@ -4,8 +4,6 @@ import textwrap
 
 import numpy as np
 
-import config
-
 
 ###### Text Processing ######
 
@@ -35,12 +33,7 @@ def compute_content_hash(model_name, sentences):
 ###### Hover Formatting ######
 
 
-def format_sentence_for_hover(
-    sentence,
-    max_width=config.HOVER_WIDTH_STANDARD,
-    max_lines=config.HOVER_LINES_STANDARD,
-    max_chars=config.HOVER_CHARS_STANDARD,
-):
+def format_sentence_for_hover(sentence, max_width=70, max_lines=12, max_chars=1400):
     """Format user text for Plotly hover labels safely."""
     if not sentence:
         return ""
