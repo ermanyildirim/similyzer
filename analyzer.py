@@ -20,23 +20,9 @@ class SentenceAnalyzer:
     def __init__(self, model_name):
         self.model_name = model_name
         self.model = load_model(model_name)
-
-        # Input data
         self.sentences = []
         self.processed_sentences = []
-
-        # Embedding results
-        self.embeddings = None
-        self.similarity_matrix = None
-
-        self._pca_coordinates = None
-
-        # Clustering results
-        self.cluster_labels = None
-        self.silhouette = None
-        self.calinski_harabasz = None
-        self.avg_within_cluster = None
-        self.avg_between_clusters = None
+        self._reset_all()
 
     # ====================================================================
     # Public API
