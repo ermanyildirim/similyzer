@@ -1,6 +1,7 @@
 import streamlit as st
 
 import config
+import styles
 from state import (
     STATE_ANALYSIS_HASH,
     STATE_ANALYZER,
@@ -55,8 +56,8 @@ TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
 
 
 def _apply_styles():
-    st.markdown(config.FONT_AWESOME_CDN, unsafe_allow_html=True)
-    st.markdown(config.CUSTOM_CSS, unsafe_allow_html=True)
+    st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
+    st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
 
 
 def _render_header():
