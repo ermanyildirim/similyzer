@@ -5,7 +5,9 @@ import textwrap
 import numpy as np
 
 
-###### Text Processing ######
+# ============================================================================
+# Text Processing
+# ============================================================================
 
 
 def normalize_whitespace(text):
@@ -18,7 +20,9 @@ def parse_texts(text):
     return [line.strip() for line in text.splitlines() if line.strip()]
 
 
-###### Hashing ######
+# ============================================================================
+# Hashing
+# ============================================================================
 
 
 def compute_content_hash(model_name, sentences):
@@ -30,7 +34,9 @@ def compute_content_hash(model_name, sentences):
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-###### Hover Formatting ######
+# ============================================================================
+# Hover Formatting
+# ============================================================================
 
 
 def format_sentence_for_hover(sentence, max_width=70, max_lines=12, max_chars=1400):
@@ -57,7 +63,9 @@ def format_sentence_for_hover(sentence, max_width=70, max_lines=12, max_chars=14
     return "<br>".join(safe_lines)
 
 
-###### Matrix Utilities ######
+# ============================================================================
+# Matrix Utilities
+# ============================================================================
 
 
 def upper_triangle(matrix):

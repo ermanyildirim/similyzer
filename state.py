@@ -13,7 +13,9 @@ STATE_TOKEN_STATS = "token_stats"
 STATE_TOKEN_STATS_HASH = "token_stats_hash"
 
 
-###### Session State Management ######
+# ============================================================================
+# Session State Management
+# ============================================================================
 
 
 def init_state():
@@ -57,7 +59,9 @@ def get_analyzer(model_name):
     return analyzer
 
 
-###### Token Statistics ######
+# ============================================================================
+# Token Statistics
+# ============================================================================
 
 
 def update_token_stats(analyzer, texts, current_hash):

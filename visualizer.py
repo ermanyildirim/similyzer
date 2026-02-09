@@ -36,7 +36,9 @@ class PlotlyVisualizer:
         if self.analyzer.similarity_matrix is None:
             self.analyzer.calculate_similarity()
 
-    ###### Public API ######
+    # ====================================================================
+    # Public API
+    # ====================================================================
 
     def create_similarity_network(self, threshold):
         self._ensure_similarity()
@@ -175,7 +177,9 @@ class PlotlyVisualizer:
 
         return self._apply_layout(fig, height=self._CHART_HEIGHT_SMALL, hover_font=14)
 
-    ###### Private: Helpers ######
+    # ====================================================================
+    # Private: Helpers
+    # ====================================================================
 
     def _empty_figure(self, message):
         fig = go.Figure()
@@ -243,7 +247,9 @@ class PlotlyVisualizer:
             hover += f"<b>Maximum cosine similarity to any text:</b> {max_similarity:.3f}<br>"
         return hover
 
-    ###### Private: Network ######
+    # ====================================================================
+    # Private: Network
+    # ====================================================================
 
     def _compute_network_layout(self, similarity, threshold):
         """Compute spring layout positions for network nodes."""
@@ -442,7 +448,9 @@ class PlotlyVisualizer:
             fig, "Similarity Network", axis_style=config.HIDDEN_AXIS, hover_font=14
         )
 
-    ###### Private: Pairs ######
+    # ====================================================================
+    # Private: Pairs
+    # ====================================================================
 
     def _pairs_data(self, sources, targets, similarities):
         sentences = self.analyzer.sentences

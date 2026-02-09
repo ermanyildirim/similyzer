@@ -31,7 +31,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-###### Constants ######
+# ============================================================================
+# Constants
+# ============================================================================
 
 SAMPLE_TEXTS = """Barcelona is a popular travel destination with its stunning architecture and dynamic atmosphere.
 Tokyo is a fascinating travel destination where tradition and innovation meet.
@@ -47,7 +49,9 @@ Data visualization is an effective technique to understand complex information."
 TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
 
 
-###### Page Setup ######
+# ============================================================================
+# Page Setup
+# ============================================================================
 
 
 def _apply_styles():
@@ -62,7 +66,9 @@ def _render_header():
     )
 
 
-###### Analysis Pipeline ######
+# ============================================================================
+# Analysis Pipeline
+# ============================================================================
 
 
 def run_full_analysis(model_name, texts, num_clusters):
@@ -117,7 +123,9 @@ def handle_analyze_click(
             st.error(f"Analysis failed: {error}")
 
 
-###### Tab Renderers ######
+# ============================================================================
+# Tab Renderers
+# ============================================================================
 
 
 def format_metric(value, fmt=".3f"):
@@ -309,7 +317,9 @@ def render_pairs_tab(visualizer):
     st.plotly_chart(pairs_figure, use_container_width=True, config=config.PLOTLY_CONFIG)
 
 
-###### Main ######
+# ============================================================================
+# Main
+# ============================================================================
 
 
 def main():

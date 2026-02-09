@@ -38,7 +38,9 @@ class SentenceAnalyzer:
         self.avg_within_cluster = None
         self.avg_between_clusters = None
 
-    ###### Public API ######
+    # ====================================================================
+    # Public API
+    # ====================================================================
 
     def add_sentences(self, sentences):
         """Set sentences, apply whitespace normalization and reset cached results."""
@@ -132,7 +134,9 @@ class SentenceAnalyzer:
         self._compute_cluster_metrics()
         return self.cluster_labels
 
-    ###### Private: Clustering ######
+    # ====================================================================
+    # Private: Clustering
+    # ====================================================================
 
     def _create_kmeans(self, num_clusters):
         return KMeans(
@@ -241,7 +245,9 @@ class SentenceAnalyzer:
             except ValueError:
                 pass
 
-    ###### Private: Utilities ######
+    # ====================================================================
+    # Private: Utilities
+    # ====================================================================
 
     def _reset_all(self):
         self.embeddings = None
