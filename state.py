@@ -34,10 +34,6 @@ def invalidate_analysis_state():
     st.session_state[STATE_TOKEN_STATS_HASH] = None
 
 
-def reset_analysis():
-    invalidate_analysis_state()
-
-
 def get_analyzer(model_name):
     """Get or create a cached analyzer instance for the model."""
     analyzer = st.session_state.get(STATE_ANALYZER)

@@ -4,7 +4,7 @@ from state import (
     STATE_INPUT_TEXT,
     STATE_TOKEN_STATS,
     STATE_TOKEN_STATS_HASH,
-    reset_analysis,
+    invalidate_analysis_state,
 )
 
 def render_sidebar_controls():
@@ -61,11 +61,11 @@ def render_input_actions(sample_text):
 
     if load_clicked:
         st.session_state[STATE_INPUT_TEXT] = sample_text
-        reset_analysis()
+        invalidate_analysis_state()
 
     if clear_clicked:
         st.session_state[STATE_INPUT_TEXT] = ""
-        reset_analysis()
+        invalidate_analysis_state()
 
 
 def render_text_area():
