@@ -304,62 +304,43 @@ class PlotlyVisualizer:
         similarities = similarity[sources, targets]
         mask = similarities > threshold
 
-        # Early return if no edges above threshold
         if not np.any(mask):
             return [], go.Scatter(
                 x=[], y=[], mode="markers", hoverinfo="text", showlegend=False
             )
 
-        # Filter to edges above threshold
         sources = sources[mask]
         targets = targets[mask]
         similarities = similarities[mask]
 
-        # Normalize edge strengths and bin into 3 groups
-        normalized = np.clip(
-            (similarities - threshold) / max(1e-9, 1.0 - threshold), 0.0, 1.0
+        # Continuous strength in [0, 1]
+        span = max(1e-9, 1.0 - threshold)
+        strength = np.clip((similarities - threshold) / span, 0.0, 1.0)
+
+        count = len(sources)
+        edge_x = np.empty(count * 3, dtype=np.float32)
+        edge_y = np.empty(count * 3, dtype=np.float32)
+        edge_x[0::3] = node_x[sources]
+        edge_x[1::3] = node_x[targets]
+        edge_x[2::3] = np.nan
+        edge_y[0::3] = node_y[sources]
+        edge_y[1::3] = node_y[targets]
+        edge_y[2::3] = np.nan
+
+        median_strength = float(np.median(strength))
+        width = 1.0 + median_strength * 5.0
+        opacity = 0.15 + median_strength * 0.55
+
+        edge_trace = go.Scatter(
+            x=edge_x,
+            y=edge_y,
+            mode="lines",
+            hoverinfo="skip",
+            showlegend=False,
+            line={"width": width, "color": f"rgba(102,126,234,{opacity:.2f})"},
         )
-        strength_bins = np.digitize(normalized, config.EDGE_STRENGTH_BINS)
 
-        # Build edge traces for each strength group
-        traces = []
-        r, g, b = config.EDGE_COLOR_RGB
-        for i in (0, 1, 2):
-            bin_mask = strength_bins == i
-            if not np.any(bin_mask):
-                continue
-            bin_sources, bin_targets, count = (
-                sources[bin_mask],
-                targets[bin_mask],
-                bin_mask.sum(),
-            )
-            edge_x = np.empty(count * 3, dtype=np.float32)
-            edge_y = np.empty(count * 3, dtype=np.float32)
-            edge_x[0::3], edge_x[1::3], edge_x[2::3] = (
-                node_x[bin_sources],
-                node_x[bin_targets],
-                np.nan,
-            )
-            edge_y[0::3], edge_y[1::3], edge_y[2::3] = (
-                node_y[bin_sources],
-                node_y[bin_targets],
-                np.nan,
-            )
-            traces.append(
-                go.Scatter(
-                    x=edge_x,
-                    y=edge_y,
-                    mode="lines",
-                    hoverinfo="skip",
-                    showlegend=False,
-                    line={
-                        "width": config.EDGE_WIDTHS[i],
-                        "color": f"rgba({r},{g},{b},{config.EDGE_OPACITIES[i]})",
-                    },
-                )
-            )
-
-        # Build hover trace at edge midpoints
+        # Hover trace at edge midpoints
         midpoint_x = (node_x[sources] + node_x[targets]) * 0.5
         midpoint_y = (node_y[sources] + node_y[targets]) * 0.5
         hover_texts = [
@@ -374,10 +355,10 @@ class PlotlyVisualizer:
             mode="markers",
             hoverinfo="text",
             hovertext=hover_texts,
-            marker={"size": config.EDGE_HOVER_SIZE, "color": "rgba(0,0,0,0)"},
+            marker={"size": 16, "color": "rgba(0,0,0,0)"},
             showlegend=False,
         )
-        return traces, hover_trace
+        return [edge_trace], hover_trace
 
     def _build_cluster_traces(
         self,
