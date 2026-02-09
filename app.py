@@ -159,7 +159,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Average pair cosine similarity",
-            f"{avg_sim:.3f}",
+            format_metric(avg_sim),
             help=average_help,
         )
     with column_maximum:
@@ -169,7 +169,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Maximum pair cosine similarity",
-            f"{max_sim:.3f}",
+            format_metric(max_sim),
             help=maximum_help,
         )
 
@@ -182,7 +182,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Minimum pair cosine similarity",
-            f"{min_sim:.3f}",
+            format_metric(min_sim),
             help=minimum_help,
         )
     with column_degree:
@@ -192,7 +192,7 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Average degree",
-            f"{network_stats.get('avg_degree', 0.0):.2f}",
+            format_metric(network_stats["avg_degree"], ".2f"),
             help=degree_help,
         )
 
@@ -205,11 +205,11 @@ def render_network_tab(analyzer, visualizer, threshold):
         )
         st.metric(
             "Network density",
-            f"{network_stats.get('density', 0.0):.3f}",
+            format_metric(network_stats["density"]),
             help=density_help,
         )
     with column_top_nodes:
-        top_nodes = network_stats.get("top_nodes", [])
+        top_nodes = network_stats["top_nodes"]
         if top_nodes:
             top_nodes_display = ", ".join(
                 [f"{node} ({degree})" for node, degree in top_nodes]
