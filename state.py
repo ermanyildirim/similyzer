@@ -65,12 +65,10 @@ def update_token_stats(analyzer, texts, current_hash):
     if existing_hash == current_hash and existing_stats is not None:
         return existing_stats
 
-    model = getattr(analyzer, "model", None)
-    tokenizer = getattr(model, "tokenizer", None) if model else None
-    if tokenizer is None:
-        return None
+    model = analyzer.model
+    tokenizer = model.tokenizer
 
-    model_max = int(getattr(model, "max_seq_length", 0) or 0)
+    model_max = model.max_seq_length or 0
 
     encode_kwargs = {"add_special_tokens": True}
     if model_max > 0:
