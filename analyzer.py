@@ -108,7 +108,6 @@ class SentenceAnalyzer:
 
         if num_samples < 2:
             self.cluster_labels = np.zeros(num_samples, dtype=np.int32)
-            self.silhouette = None
             self._compute_cluster_metrics()
             return self.cluster_labels
 
@@ -198,9 +197,6 @@ class SentenceAnalyzer:
         self.avg_between_clusters = None
         self.calinski_harabasz = None
 
-        if self.cluster_labels is None or self.similarity_matrix is None:
-            return
-
         num_samples = self.cluster_labels.size
         num_clusters = np.unique(self.cluster_labels).size
 
@@ -223,7 +219,7 @@ class SentenceAnalyzer:
             self.avg_between_clusters = float(between.mean())
 
         # Calinski-Harabasz Index (Variance Ratio Criterion)
-        if num_clusters >= 2 and num_samples > num_clusters:
+        if num_samples > num_clusters:
             try:
                 self.calinski_harabasz = float(
                     calinski_harabasz_score(self.embeddings, self.cluster_labels)
