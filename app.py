@@ -51,23 +51,6 @@ TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
 
 
 # ============================================================================
-# Page Setup
-# ============================================================================
-
-
-def _apply_styles():
-    st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
-    st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
-
-
-def _render_header():
-    st.markdown(
-        "<h1><i class='fa-solid fa-magnifying-glass-chart'></i> Similyzer</h1>",
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================================
 # Analysis Pipeline
 # ============================================================================
 
@@ -323,8 +306,12 @@ def render_pairs_tab(visualizer):
 
 
 def main():
-    _apply_styles()
-    _render_header()
+    st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
+    st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
+    st.markdown(
+        "<h1><i class='fa-solid fa-magnifying-glass-chart'></i> Similyzer</h1>",
+        unsafe_allow_html=True,
+    )
     init_state()
 
     # Sidebar controls
