@@ -2,7 +2,6 @@ import streamlit as st
 
 import config
 from analyzer import SentenceAnalyzer
-from utils import normalize_whitespace
 
 # Session state keys
 STATE_ANALYZER = "analyzer"
@@ -75,8 +74,7 @@ def update_token_stats(analyzer, texts, current_hash):
     overlimit_indices = []
 
     for i, raw_text in enumerate(texts):
-        processed = normalize_whitespace(raw_text)
-        count = len(tokenizer.encode(processed, **encode_kwargs))
+        count = len(tokenizer.encode(raw_text, **encode_kwargs))
         token_lengths.append(count)
         if 0 < model_max < count:
             overlimit_indices.append(i)

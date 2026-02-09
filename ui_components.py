@@ -1,5 +1,6 @@
 import streamlit as st
 
+import config
 from state import (
     STATE_INPUT_TEXT,
     STATE_TOKEN_STATS,
@@ -91,10 +92,10 @@ def _build_token_note(token_stats, model_max):
     max_line_indices = token_stats["max_line_indices"]
     if max_line_indices:
         line_numbers = [str(i + 1) for i in max_line_indices]
-        shown = line_numbers[:5]
+        shown = line_numbers[:config.MAX_SHOWN_LINES]
 
-        if len(line_numbers) > 5:
-            suffix = f" (+{len(line_numbers) - 5} more)"
+        if len(line_numbers) > config.MAX_SHOWN_LINES:
+            suffix = f" (+{len(line_numbers) - config.MAX_SHOWN_LINES} more)"
         else:
             suffix = ""
 

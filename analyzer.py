@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
 
 import config
-from utils import normalize_whitespace, upper_triangle
+from utils import upper_triangle
 
 
 @st.cache_resource(show_spinner=False)
@@ -29,11 +29,9 @@ class SentenceAnalyzer:
     # ====================================================================
 
     def add_sentences(self, sentences):
-        """Set sentences, apply whitespace normalization and reset cached results."""
+        """Set sentences and reset cached results."""
         self.sentences = list(sentences)
-        self.processed_sentences = [
-            normalize_whitespace(sentence) for sentence in self.sentences
-        ]
+        self.processed_sentences = list(sentences)
         self._reset_all()
 
     def get_embeddings(self):
@@ -116,13 +114,6 @@ class SentenceAnalyzer:
     # Private: Clustering
     # ====================================================================
 
-    def _create_kmeans(self, num_clusters):
-        return KMeans(
-            n_clusters=num_clusters,
-            random_state=config.RANDOM_SEED,
-            n_init=config.KMEANS_N_INIT,
-        )
-
     def _auto_cluster(self):
         """Select optimal cluster count using silhouette score."""
         num_samples = self.embeddings.shape[0]
@@ -154,7 +145,11 @@ class SentenceAnalyzer:
         num_samples = self.embeddings.shape[0]
         cluster_count = max(1, min(num_clusters, num_samples))
 
-        kmeans = self._create_kmeans(cluster_count)
+        kmeans = KMeans(
+            n_clusters=cluster_count,
+            random_state=config.RANDOM_SEED,
+            n_init=config.KMEANS_N_INIT,
+        )
         self.cluster_labels = kmeans.fit_predict(self.embeddings)
 
         self.silhouette = None
@@ -173,7 +168,11 @@ class SentenceAnalyzer:
     def _try_clustering(self, num_clusters):
         """Attempt K-Means and return (score, labels) or None on failure."""
         try:
-            kmeans = self._create_kmeans(num_clusters)
+            kmeans = KMeans(
+                n_clusters=num_clusters,
+                random_state=config.RANDOM_SEED,
+                n_init=config.KMEANS_N_INIT,
+            )
             labels = kmeans.fit_predict(self.embeddings)
 
             if np.unique(labels).size < 2:

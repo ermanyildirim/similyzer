@@ -55,15 +55,6 @@ TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
 # ============================================================================
 
 
-def run_full_analysis(model_name, texts, num_clusters):
-    analyzer = get_analyzer(model_name)
-    analyzer.add_sentences(texts)
-    analyzer.get_embeddings()
-    analyzer.calculate_similarity()
-    analyzer.reduce_dimensions()
-    analyzer.perform_clustering(num_clusters)
-
-
 def handle_analyze_click(
     analyze_clicked, texts, model_name, num_clusters, current_hash
 ):
@@ -99,7 +90,12 @@ def handle_analyze_click(
     # Run analysis
     with st.spinner("Analyzing..."):
         try:
-            run_full_analysis(model_name, texts, num_clusters)
+            analyzer = get_analyzer(model_name)
+            analyzer.add_sentences(texts)
+            analyzer.get_embeddings()
+            analyzer.calculate_similarity()
+            analyzer.reduce_dimensions()
+            analyzer.perform_clustering(num_clusters)
             st.session_state[STATE_ANALYSIS_HASH] = current_hash
             st.session_state[STATE_CLUSTER_COUNT] = num_clusters
         except Exception as error:

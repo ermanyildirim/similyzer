@@ -17,7 +17,7 @@ def normalize_whitespace(text):
 def parse_texts(text):
     if not text:
         return []
-    return [line.strip() for line in text.splitlines() if line.strip()]
+    return [normalize_whitespace(line) for line in text.splitlines() if line.strip()]
 
 
 # ============================================================================
@@ -29,8 +29,7 @@ def compute_content_hash(model_name, sentences):
     """Compute a hash for cache invalidation. Returns None for empty input."""
     if not sentences:
         return None
-    processed = [normalize_whitespace(sentence) for sentence in sentences]
-    content = f"{model_name}|" + "\n".join(processed)
+    content = f"{model_name}|" + "\n".join(sentences)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
