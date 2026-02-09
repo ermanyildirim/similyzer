@@ -48,10 +48,13 @@ class PlotlyVisualizer:
             except Exception:
                 pass  # Continue without clusters if clustering fails
 
+        empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
+
         if num_nodes == 0:
-            return self._empty_figure("No texts")
+            return self._empty_figure("No texts"), empty_stats
         if num_nodes == 1:
-            return self._single_node_network(self.analyzer.reduce_dimensions())
+            fig = self._single_node_network(self.analyzer.reduce_dimensions())
+            return fig, empty_stats
 
         similarity = self.analyzer.similarity_matrix.astype(np.float32)
         coordinates = self._compute_network_layout(similarity, threshold)
@@ -75,20 +78,16 @@ class PlotlyVisualizer:
         )
 
         fig = go.Figure(data=edges + [edge_hover] + nodes + [self._origin_marker()])
-        return self._apply_layout(
+        fig = self._apply_layout(
             fig, "Similarity Network", show_legend=True, axis_style=config.GRID_AXIS
         )
 
-    def compute_network_stats(self, threshold):
-        self._ensure_similarity()
-        node_stats = self._compute_node_stats(
-            self.analyzer.similarity_matrix.astype(np.float32), threshold
-        )
-        return {
+        network_stats = {
             "avg_degree": node_stats["avg_degree"],
             "density": node_stats["density"],
             "top_nodes": node_stats["top_nodes"],
         }
+        return fig, network_stats
 
     def create_cluster_visualization(self):
         """Create cluster visualization using PCA coordinates."""
@@ -248,9 +247,7 @@ class PlotlyVisualizer:
 
     def _compute_network_layout(self, similarity, threshold):
         """Compute spring layout positions for network nodes."""
-        adjacency = np.where(
-            similarity <= threshold, 0.0, similarity.astype(np.float32)
-        )
+        adjacency = np.where(similarity <= threshold, 0.0, similarity)
         np.fill_diagonal(adjacency, 0.0)
         graph = nx.from_numpy_array(adjacency)
         pos = nx.spring_layout(graph, weight="weight", seed=config.RANDOM_SEED, dim=2)

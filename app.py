@@ -126,7 +126,7 @@ def format_metric(value, fmt=".3f"):
 
 
 def render_network_tab(analyzer, visualizer, threshold):
-    network_figure = visualizer.create_similarity_network(threshold=threshold)
+    network_figure, network_stats = visualizer.create_similarity_network(threshold=threshold)
     st.plotly_chart(
         network_figure, use_container_width=True, config=config.PLOTLY_CONFIG
     )
@@ -141,8 +141,6 @@ def render_network_tab(analyzer, visualizer, threshold):
         avg_sim = float(pairwise.mean())
         min_sim = float(pairwise.min())
         max_sim = float(pairwise.max())
-
-    network_stats = visualizer.compute_network_stats(threshold)
 
     # Row 1: Average and Maximum similarity
     column_average, column_maximum = st.columns(2)

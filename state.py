@@ -60,19 +60,6 @@ def get_analyzer(model_name):
 ###### Token Statistics ######
 
 
-def count_tokens(tokenizer, text, cap=None):
-    """Count tokens for a single text with optional truncation."""
-    if tokenizer is None:
-        return 0
-
-    kwargs = {"add_special_tokens": True}
-    if cap is not None and cap > 0:
-        kwargs["truncation"] = True
-        kwargs["max_length"] = cap + 1
-
-    return len(tokenizer.encode(text, **kwargs))
-
-
 def update_token_stats(analyzer, texts, current_hash):
     """Compute and cache token statistics. Returns stats dict or None."""
     existing_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
@@ -88,12 +75,17 @@ def update_token_stats(analyzer, texts, current_hash):
 
     model_max = int(getattr(model, "max_seq_length", 0) or 0)
 
+    encode_kwargs = {"add_special_tokens": True}
+    if model_max > 0:
+        encode_kwargs["truncation"] = True
+        encode_kwargs["max_length"] = model_max + 1
+
     token_lengths = []
     overlimit_indices = []
 
     for i, raw_text in enumerate(texts):
         processed = normalize_whitespace(raw_text)
-        count = count_tokens(tokenizer, processed, cap=model_max)
+        count = len(tokenizer.encode(processed, **encode_kwargs))
         token_lengths.append(count)
         if 0 < model_max < count:
             overlimit_indices.append(i)
