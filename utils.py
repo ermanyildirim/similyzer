@@ -103,14 +103,11 @@ def pair_similarity_stats(similarity_matrix):
 def cluster_partitions(cluster_labels):
     """Group text indices by cluster label."""
     if cluster_labels is None:
-        return [], []
+        return []
 
     cluster_map = {}
     for text_index, label in enumerate(cluster_labels):
         cluster_id = int(label)
         cluster_map.setdefault(cluster_id, []).append(text_index)
 
-    sorted_ids = sorted(cluster_map.keys())
-    cluster_indices = [cluster_map[cluster_id] for cluster_id in sorted_ids]
-    cluster_sizes = [len(cluster_map[cluster_id]) for cluster_id in sorted_ids]
-    return cluster_sizes, cluster_indices
+    return [cluster_map[cid] for cid in sorted(cluster_map)]

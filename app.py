@@ -223,7 +223,8 @@ def render_clusters_tab(analyzer, visualizer):
     if analyzer.cluster_labels is None:
         return
 
-    cluster_sizes, cluster_indices = cluster_partitions(analyzer.cluster_labels)
+    cluster_indices = cluster_partitions(analyzer.cluster_labels)
+    cluster_sizes = [len(members) for members in cluster_indices]
 
     # Overview section
     st.markdown(
