@@ -52,9 +52,6 @@ class SentenceAnalyzer:
 
         embeddings = np.asarray(embeddings, dtype=np.float32)
 
-        if embeddings.ndim == 1:
-            embeddings = embeddings.reshape(1, -1)
-
         self.embeddings = embeddings
         return embeddings
 
