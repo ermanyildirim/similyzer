@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+from sentence_transformers import util
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -99,28 +100,21 @@ class PlotlyVisualizer:
         if num_texts < 2:
             return self._empty_figure("Need at least 2 texts")
 
-        similarity = self.analyzer.similarity_matrix
-        row_index, column_index = np.triu_indices(num_texts, k=1)
-        similarities = similarity[row_index, column_index]
-        k = min(int(num_pairs), len(similarities))
+        pairs = util.paraphrase_mining_embeddings(self.analyzer.embeddings)
+        k = min(int(num_pairs), len(pairs))
 
-        # Top k most similar (reversed for chart display)
-        most_indices = np.argpartition(-similarities, k - 1)[:k]
-        most_indices = most_indices[np.argsort(-similarities[most_indices])][::-1]
-
-        # Top k least similar (reversed for chart display)
-        least_indices = np.argpartition(similarities, k - 1)[:k]
-        least_indices = least_indices[np.argsort(similarities[least_indices])][::-1]
+        most_pairs = pairs[:k]
+        least_pairs = pairs[-k:][::-1]
 
         most_data = self._pairs_data(
-            row_index[most_indices],
-            column_index[most_indices],
-            similarities[most_indices],
+            np.array([p[1] for p in most_pairs]),
+            np.array([p[2] for p in most_pairs]),
+            np.array([p[0] for p in most_pairs]),
         )
         least_data = self._pairs_data(
-            row_index[least_indices],
-            column_index[least_indices],
-            similarities[least_indices],
+            np.array([p[1] for p in least_pairs]),
+            np.array([p[2] for p in least_pairs]),
+            np.array([p[0] for p in least_pairs]),
         )
 
         fig = make_subplots(

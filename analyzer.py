@@ -1,6 +1,6 @@
 import numpy as np
 import streamlit as st
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, util
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
@@ -43,7 +43,6 @@ class SentenceAnalyzer:
         embeddings = self.model.encode(
             self.sentences,
             show_progress_bar=False,
-            normalize_embeddings=True,
         )
 
         embeddings = np.asarray(embeddings, dtype=np.float32)
@@ -59,10 +58,8 @@ class SentenceAnalyzer:
         if self.embeddings is None:
             self.get_embeddings()
 
-        similarity_matrix = np.dot(self.embeddings, self.embeddings.T)
-
-        self.similarity_matrix = similarity_matrix
-        return similarity_matrix
+        self.similarity_matrix = util.cos_sim(self.embeddings, self.embeddings).numpy()
+        return self.similarity_matrix
 
     def reduce_dimensions(self):
         """Reduce embeddings to 2D using PCA for visualization."""
