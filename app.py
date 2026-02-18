@@ -90,7 +90,6 @@ def handle_analyze_click(
     # Run analysis
     with st.spinner("Analyzing..."):
         try:
-            analyzer = get_analyzer(model_name)
             analyzer.add_sentences(texts)
             analyzer.get_embeddings()
             analyzer.calculate_similarity()
