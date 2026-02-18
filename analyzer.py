@@ -21,7 +21,6 @@ class SentenceAnalyzer:
         self.model_name = model_name
         self.model = load_model(model_name)
         self.sentences = []
-        self.processed_sentences = []
         self._reset_all()
 
     # ====================================================================
@@ -31,7 +30,6 @@ class SentenceAnalyzer:
     def add_sentences(self, sentences):
         """Set sentences and reset cached results."""
         self.sentences = list(sentences)
-        self.processed_sentences = list(sentences)
         self._reset_all()
 
     def get_embeddings(self):
@@ -39,11 +37,11 @@ class SentenceAnalyzer:
         if self.embeddings is not None:
             return self.embeddings
 
-        if not self.processed_sentences:
+        if not self.sentences:
             raise ValueError("No sentences provided")
 
         embeddings = self.model.encode(
-            self.processed_sentences,
+            self.sentences,
             show_progress_bar=False,
             normalize_embeddings=True,
         )
