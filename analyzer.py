@@ -137,7 +137,6 @@ class SentenceAnalyzer:
 
         if best_labels is not None:
             self.cluster_labels = best_labels
-            self.silhouette = float(best_score)
 
     def _kmeans_cluster(self, num_clusters):
         num_samples = self.embeddings.shape[0]
@@ -149,19 +148,6 @@ class SentenceAnalyzer:
             n_init=config.KMEANS_N_INIT,
         )
         self.cluster_labels = kmeans.fit_predict(self.embeddings)
-
-        self.silhouette = None
-        has_multiple_clusters = np.unique(self.cluster_labels).size >= 2
-
-        if has_multiple_clusters and cluster_count < num_samples:
-            try:
-                self.silhouette = float(
-                    silhouette_score(
-                        self.embeddings, self.cluster_labels, metric="cosine"
-                    )
-                )
-            except ValueError:
-                pass
 
     def _try_clustering(self, num_clusters):
         """Attempt K-Means and return (score, labels) or None on failure."""
@@ -182,10 +168,11 @@ class SentenceAnalyzer:
             return None
 
     def _compute_cluster_metrics(self):
-        """Compute within/between cluster similarities and Calinski-Harabasz index."""
+        """Compute within/between cluster similarities, silhouette and Calinski-Harabasz index."""
         self.avg_within_cluster = None
         self.avg_between_clusters = None
         self.calinski_harabasz = None
+        self.silhouette = None
 
         num_samples = self.cluster_labels.size
         num_clusters = np.unique(self.cluster_labels).size
@@ -207,6 +194,15 @@ class SentenceAnalyzer:
             self.avg_within_cluster = float(within.mean())
         if between.size:
             self.avg_between_clusters = float(between.mean())
+
+        # Silhouette score
+        if num_samples > num_clusters:
+            try:
+                self.silhouette = float(
+                    silhouette_score(self.embeddings, self.cluster_labels, metric="cosine")
+                )
+            except ValueError:
+                pass
 
         # Calinski-Harabasz Index (Variance Ratio Criterion)
         if num_samples > num_clusters:
