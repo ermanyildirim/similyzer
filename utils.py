@@ -1,8 +1,11 @@
 import hashlib
 import html
 import textwrap
-
 import numpy as np
+
+from sklearn.preprocessing import StandardScaler
+
+
 
 
 # ============================================================================
@@ -69,21 +72,11 @@ def format_sentence_for_hover(sentence, max_width=70, max_lines=12, max_chars=14
 
 def upper_triangle(matrix):
     """Return upper-triangular values excluding the diagonal."""
-    if matrix.shape[0] < 2:
-        return np.array([], dtype=matrix.dtype)
-
-    row_index, column_index = np.triu_indices(matrix.shape[0], k=1)
-    return matrix[row_index, column_index]
+    return matrix[np.triu_indices_from(matrix, k=1)]
 
 
 def normalize_coordinates(coordinates):
-    """Normalize coordinates to zero mean and unit variance."""
-    coordinates = np.asarray(coordinates, dtype=np.float32)
-    mean = coordinates.mean(axis=0)
-    standard_deviation = coordinates.std(axis=0)
-    standard_deviation = np.where(standard_deviation < 1e-10, 1.0, standard_deviation)
-    return (coordinates - mean) / standard_deviation
-
+    return StandardScaler().fit_transform(coordinates).astype(np.float32)
 
 
 def cluster_partitions(labels):
