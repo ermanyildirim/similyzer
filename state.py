@@ -1,6 +1,7 @@
 import streamlit as st
-
 import config
+import numpy as np
+
 from analyzer import SentenceAnalyzer
 
 # Session state keys
@@ -52,43 +53,30 @@ def get_analyzer(model_name):
 # ============================================================================
 
 
-def update_token_stats(analyzer, texts, current_hash):
-    """Compute and cache token statistics. Returns stats dict or None."""
-    existing_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
-    existing_stats = st.session_state.get(STATE_TOKEN_STATS)
-
-    if existing_hash == current_hash and existing_stats is not None:
-        return existing_stats
-
-    model = analyzer.model
-    tokenizer = model.tokenizer
-
+def _compute_token_stats(model, texts):
+    """Compute raw token statistics."""
     model_max = model.max_seq_length or 0
-
-    encode_kwargs = {"add_special_tokens": True}
-    if model_max > 0:
-        encode_kwargs["truncation"] = True
-        encode_kwargs["max_length"] = model_max + 1
-
-    token_lengths = []
-    overlimit_indices = []
-
-    for i, raw_text in enumerate(texts):
-        count = len(tokenizer.encode(raw_text, **encode_kwargs))
-        token_lengths.append(count)
-        if 0 < model_max < count:
-            overlimit_indices.append(i)
-
-    max_tokens = max(token_lengths) if token_lengths else 0
-    max_indices = [i for i, c in enumerate(token_lengths) if c == max_tokens] if token_lengths else []
-
-    stats = {
+    token_lengths = model.tokenize(texts)["attention_mask"].sum(axis=1).numpy()
+    max_tokens = int(token_lengths.max()) if token_lengths.size else 0
+    
+    return {
         "max_tokens": max_tokens,
         "model_max": model_max,
-        "too_long": len(overlimit_indices),
-        "too_long_lines": overlimit_indices,
-        "max_line_indices": max_indices,
+        "too_long_lines": np.flatnonzero((model_max > 0) & (token_lengths > model_max)).tolist(),
+        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist() if token_lengths.size else [],
     }
+
+
+def update_token_stats(analyzer, texts, current_hash):
+    """Compute and cache token statistics."""
+    cached_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
+    cached_stats = st.session_state.get(STATE_TOKEN_STATS)
+
+    if cached_hash == current_hash and cached_stats is not None:
+        return cached_stats
+
+    stats = _compute_token_stats(analyzer.model, texts)
+    stats["too_long"] = len(stats["too_long_lines"])
 
     st.session_state[STATE_TOKEN_STATS] = stats
     st.session_state[STATE_TOKEN_STATS_HASH] = current_hash
