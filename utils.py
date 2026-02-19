@@ -86,14 +86,7 @@ def normalize_coordinates(coordinates):
 
 
 
-def cluster_partitions(cluster_labels):
-    """Group text indices by cluster label."""
-    if cluster_labels is None:
+def cluster_partitions(labels):
+    if labels is None:
         return []
-
-    cluster_map = {}
-    for text_index, label in enumerate(cluster_labels):
-        cluster_id = int(label)
-        cluster_map.setdefault(cluster_id, []).append(text_index)
-
-    return [cluster_map[cid] for cid in sorted(cluster_map)]
+    return [np.flatnonzero(labels == cluster_id).tolist() for cluster_id in np.unique(labels)]
