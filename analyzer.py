@@ -32,7 +32,6 @@ class SentenceAnalyzer:
         self.sentences = list(sentences)
         self._reset_all()
 
-
     def get_embeddings(self):
         """Compute sentence embeddings (or return cached)."""
         if self.embeddings is not None:
@@ -47,8 +46,7 @@ class SentenceAnalyzer:
         )
         return self.embeddings
 
-
-    def calculate_similarity(self):
+    def get_similarity_matrix(self):
         """Compute cosine similarity matrix (or return cached)."""
         if self.similarity_matrix is not None:
             return self.similarity_matrix
@@ -59,11 +57,10 @@ class SentenceAnalyzer:
         self.similarity_matrix = util.cos_sim(self.embeddings, self.embeddings).numpy()
         return self.similarity_matrix
 
-
-    def reduce_dimensions(self):
-        """Reduce embeddings to 2D using PCA for visualization."""
-        if self._pca_coordinates is not None:
-            return self._pca_coordinates
+    def get_pca_coordinates(self):
+        """Reduce embeddings to 2D using PCA for visualization (or return cached)."""
+        if self.pca_coordinates is not None:
+            return self.pca_coordinates
 
         if self.embeddings is None:
             self.get_embeddings()
@@ -71,21 +68,20 @@ class SentenceAnalyzer:
         n_sentences = len(self.sentences)
 
         if n_sentences < 2:
-            self._pca_coordinates = np.array([[0.0, 0.0]], dtype=np.float32)
-            return self._pca_coordinates
+            self.pca_coordinates = np.array([[0.0, 0.0]], dtype=np.float32)
+            return self.pca_coordinates
 
         n_components = min(2, self.embeddings.shape[1], n_sentences)
         pca = PCA(n_components=n_components, random_state=config.RANDOM_SEED)
-        self._pca_coordinates = pca.fit_transform(self.embeddings)
-        return self._pca_coordinates
+        self.pca_coordinates = pca.fit_transform(self.embeddings)
+        return self.pca_coordinates
 
-
-    def perform_clustering(self, n_clusters):
+    def get_cluster_labels(self, n_clusters):
         """Perform K-Means clustering and compute quality metrics."""
         if self.embeddings is None:
             self.get_embeddings()
         if self.similarity_matrix is None:
-            self.calculate_similarity()
+            self.get_similarity_matrix()
 
         n_sentences = self.embeddings.shape[0]
 
@@ -102,18 +98,21 @@ class SentenceAnalyzer:
         self._compute_cluster_metrics()
         return self.cluster_labels
 
-
     def get_top_pairs(self):
-        """Return scored pairs sorted by similarity (highest first)."""
+        """Return scored pairs sorted by similarity (or return cached)."""
+        if self.top_pairs is not None:
+            return self.top_pairs
+
         if self.embeddings is None:
             self.get_embeddings()
-        return util.paraphrase_mining_embeddings(self.embeddings)
-    
+
+        self.top_pairs = util.paraphrase_mining_embeddings(self.embeddings)
+        return self.top_pairs
 
     def get_pairwise_stats(self):
         """Return (mean, min, max) of upper-triangle similarity values."""
         if self.similarity_matrix is None:
-            self.calculate_similarity()
+            self.get_similarity_matrix()
 
         pairwise = upper_triangle(self.similarity_matrix)
         if pairwise.size == 0:
@@ -132,14 +131,12 @@ class SentenceAnalyzer:
             n_init=config.KMEANS_N_INIT,
         )
 
-
     def _auto_cluster(self):
         """Select optimal cluster count using silhouette score with early stopping."""
         n_sentences = self.embeddings.shape[0]
         upper_bound = min(config.DEFAULT_MAX_CLUSTERS, n_sentences - 1)
 
         self.cluster_labels = np.zeros(n_sentences, dtype=np.int32)
-        self.silhouette = None
 
         if upper_bound < 2:
             return
@@ -168,12 +165,10 @@ class SentenceAnalyzer:
         if best_labels is not None:
             self.cluster_labels = best_labels
 
-
     def _kmeans_cluster(self, n_clusters):
         n_sentences = self.embeddings.shape[0]
         clamped = max(1, min(n_clusters, n_sentences))
         self.cluster_labels = self._create_kmeans(clamped).fit_predict(self.embeddings)
-
 
     def _try_clustering(self, n_clusters):
         """Attempt K-Means and return (score, labels) or None on failure."""
@@ -198,7 +193,6 @@ class SentenceAnalyzer:
             return float(func(*args, **kwargs))
         except ValueError:
             return None
-
 
     def _compute_cluster_metrics(self):
         """Compute within/between cluster similarities, silhouette and Calinski-Harabasz index."""
@@ -243,8 +237,9 @@ class SentenceAnalyzer:
     def _reset_all(self):
         self.embeddings = None
         self.similarity_matrix = None
-        self._pca_coordinates = None
+        self.pca_coordinates = None
         self.cluster_labels = None
+        self.top_pairs = None
         self.silhouette = None
         self.calinski_harabasz = None
         self.avg_within_cluster = None
