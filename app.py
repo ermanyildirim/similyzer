@@ -16,46 +16,6 @@ st.set_page_config(
 
 
 # ============================================================================
-# UI Helpers
-# ============================================================================
-
-
-def show_chart(figure):
-    """Display a Plotly figure with consistent container and config settings."""
-    st.plotly_chart(figure, use_container_width=True, config=config.PLOTLY_CONFIG)
-
-
-def fa_heading(icon, text, level=3):
-    """Render a Font Awesome icon heading, centered."""
-    st.markdown(
-        f"<h{level} style='text-align:center;'>"
-        f"<i class='fa-solid fa-{icon}'></i> {text}"
-        f"</h{level}>",
-        unsafe_allow_html=True,
-    )
-
-
-def format_metric(value, fmt=".3f"):
-    """Format a metric value for display, returning 'N/A' if None."""
-    if value is None:
-        return "N/A"
-    if isinstance(value, str) or not fmt:
-        return str(value)
-    return f"{value:{fmt}}"
-
-
-def render_metrics_grid(descriptions, values, columns=2):
-    """Render a grid of st.metric widgets from descriptions and values."""
-    for row_start in range(0, len(descriptions), columns):
-        row = zip(descriptions[row_start : row_start + columns],
-                  values[row_start : row_start + columns])
-        cols = st.columns(columns)
-        for col, (desc, value) in zip(cols, row):
-            with col:
-                st.metric(desc.label, format_metric(value, desc.fmt), help=desc.help)
-
-
-# ============================================================================
 # Validation
 # ============================================================================
 
@@ -88,16 +48,16 @@ def _validate_input(texts, current_hash):
 # ============================================================================
 
 
-def _run_analysis(analyzer, texts, num_clusters):
+def _run_analysis(analyzer, texts, n_clusters):
     """Execute the full embedding -> similarity -> clustering pipeline."""
     analyzer.add_sentences(texts)
     analyzer.get_embeddings()
     analyzer.calculate_similarity()
     analyzer.reduce_dimensions()
-    analyzer.perform_clustering(num_clusters)
+    analyzer.perform_clustering(n_clusters)
 
 
-def handle_analyze_click(texts, num_clusters, current_hash):
+def handle_analyze_click(texts, n_clusters, current_hash):
     """Validate input and trigger analysis when Analyze button is clicked."""
     error = _validate_input(texts, current_hash)
     if error:
@@ -107,9 +67,9 @@ def handle_analyze_click(texts, num_clusters, current_hash):
     with st.spinner("Analyzing..."):
         try:
             analyzer = state.get_analyzer(config.MODEL_NAME)
-            _run_analysis(analyzer, texts, num_clusters)
+            _run_analysis(analyzer, texts, n_clusters)
             st.session_state[state.STATE_ANALYSIS_HASH] = current_hash
-            st.session_state[state.STATE_CLUSTER_COUNT] = num_clusters
+            st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
         except Exception as error:
             st.error(f"Analysis failed: {error}")
 
@@ -122,7 +82,7 @@ def handle_analyze_click(texts, num_clusters, current_hash):
 def render_network_tab(analyzer, visualizer, threshold):
     """Render the similarity network graph and associated metrics."""
     network_figure, network_stats = visualizer.create_similarity_network(threshold=threshold)
-    show_chart(network_figure)
+    ui.show_chart(network_figure)
 
     if analyzer.similarity_matrix is None or len(analyzer.sentences) == 0:
         return
@@ -134,12 +94,12 @@ def render_network_tab(analyzer, visualizer, threshold):
 
     values = [avg_sim, max_sim, min_sim, network_stats["avg_degree"],
               network_stats["density"], top_nodes_display]
-    render_metrics_grid(config.METRIC_DESCRIPTIONS["network"], values)
+    ui.render_metrics_grid(config.METRIC_DESCRIPTIONS["network"], values)
 
 
 def render_clusters_tab(analyzer, visualizer):
     """Render the cluster visualization, metrics, and per-cluster text lists."""
-    show_chart(visualizer.create_cluster_visualization())
+    ui.show_chart(visualizer.create_cluster_visualization())
 
     if analyzer.cluster_labels is None:
         return
@@ -147,17 +107,17 @@ def render_clusters_tab(analyzer, visualizer):
     cluster_indices = utils.cluster_partitions(analyzer.cluster_labels)
     cluster_sizes = [len(members) for members in cluster_indices]
 
-    fa_heading("eye", "Overview")
+    ui.fa_heading("eye", "Overview")
     overview_values = [len(cluster_sizes), min(cluster_sizes, default=0),
                        max(cluster_sizes, default=0)]
-    render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
+    ui.render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
 
-    fa_heading("chart-line", "Metrics")
+    ui.fa_heading("chart-line", "Metrics")
     detail_values = [analyzer.silhouette, analyzer.avg_within_cluster,
                      analyzer.calinski_harabasz, analyzer.avg_between_clusters]
-    render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
+    ui.render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
 
-    fa_heading("layer-group", "Texts by Cluster")
+    ui.fa_heading("layer-group", "Texts by Cluster")
     for cluster_id, text_indices in enumerate(cluster_indices):
         with st.expander(f"Cluster {cluster_id + 1} ({len(text_indices)} texts)"):
             for i in text_indices:
@@ -166,7 +126,7 @@ def render_clusters_tab(analyzer, visualizer):
 
 def render_pairs_tab(visualizer):
     """Render the top similar pairs bar chart."""
-    show_chart(visualizer.create_top_pairs_chart(num_pairs=10))
+    ui.show_chart(visualizer.create_top_pairs_chart(n_pairs=10))
 
 
 # ============================================================================
@@ -174,7 +134,7 @@ def render_pairs_tab(visualizer):
 # ============================================================================
 
 
-def _render_results(texts, num_clusters, current_hash, threshold):
+def _render_results(texts, n_clusters, current_hash, threshold):
     """Check analysis state and render result tabs if ready."""
     analyzer = st.session_state.get(state.STATE_ANALYZER)
     analysis_hash = st.session_state.get(state.STATE_ANALYSIS_HASH)
@@ -189,10 +149,10 @@ def _render_results(texts, num_clusters, current_hash, threshold):
         (st.info if not texts else st.warning)(msg)
         return
 
-    if num_clusters != st.session_state.get(state.STATE_CLUSTER_COUNT):
+    if n_clusters != st.session_state.get(state.STATE_CLUSTER_COUNT):
         try:
-            analyzer.perform_clustering(num_clusters)
-            st.session_state[state.STATE_CLUSTER_COUNT] = num_clusters
+            analyzer.perform_clustering(n_clusters)
+            st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
         except Exception as error:
             st.error(f"Re-clustering failed: {error}. Click Analyze to recompute.")
             return
@@ -200,7 +160,7 @@ def _render_results(texts, num_clusters, current_hash, threshold):
     visualizer = PlotlyVisualizer(analyzer)
 
     st.markdown("---")
-    fa_heading("chart-pie", "Analysis Results", level=2)
+    ui.fa_heading("chart-pie", "Analysis Results", level=2)
 
     network_tab, clusters_tab, pairs_tab = st.tabs(config.TAB_LABELS)
 
@@ -215,10 +175,10 @@ def _render_results(texts, num_clusters, current_hash, threshold):
 def main():
     st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
     st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
-    fa_heading("magnifying-glass-chart", "Similyzer", level=1)
+    ui.fa_heading("magnifying-glass-chart", "Similyzer", level=1)
     state.init_state()
 
-    num_clusters, threshold = ui.render_sidebar_controls()
+    n_clusters, threshold = ui.render_sidebar_controls()
 
     header_left, header_right = st.columns([3, 1])
     with header_left:
@@ -244,12 +204,12 @@ def main():
     analyze_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     if analyze_clicked:
-        handle_analyze_click(texts, num_clusters, current_hash)
+        handle_analyze_click(texts, n_clusters, current_hash)
 
     with stats_placeholder.container():
         ui.render_stats_panel(texts, current_hash)
 
-    _render_results(texts, num_clusters, current_hash, threshold)
+    _render_results(texts, n_clusters, current_hash, threshold)
 
 
 if __name__ == "__main__":

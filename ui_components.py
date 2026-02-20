@@ -5,19 +5,43 @@ import state
 
 
 # ============================================================================
-# Constants
+# Display Helpers
 # ============================================================================
 
-_BUTTON_ACTIONS = {
-    "button_load_sample": {
-        "label": "Load sample",
-        "help": "Inserting the sample input",
-    },
-    "button_clear": {
-        "label": "Clear",
-        "help": "Clearing the input",
-    },
-}
+
+def show_chart(figure):
+    """Display a Plotly figure with consistent container and config settings."""
+    st.plotly_chart(figure, use_container_width=True, config=config.PLOTLY_CONFIG)
+
+
+def fa_heading(icon, text, level=3):
+    """Render a Font Awesome icon heading, centered."""
+    st.markdown(
+        f"<h{level} style='text-align:center;'>"
+        f"<i class='fa-solid fa-{icon}'></i> {text}"
+        f"</h{level}>",
+        unsafe_allow_html=True,
+    )
+
+
+def format_metric(value, fmt=".3f"):
+    """Format a metric value for display, returning 'N/A' if None."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, str) or not fmt:
+        return str(value)
+    return f"{value:{fmt}}"
+
+
+def render_metrics_grid(descriptions, values, columns=2):
+    """Render a grid of st.metric widgets from descriptions and values."""
+    for row_start in range(0, len(descriptions), columns):
+        row = zip(descriptions[row_start : row_start + columns],
+                  values[row_start : row_start + columns])
+        cols = st.columns(columns)
+        for col, (desc, value) in zip(cols, row):
+            with col:
+                st.metric(desc.label, format_metric(value, desc.fmt), help=desc.help)
 
 
 # ============================================================================
@@ -35,9 +59,9 @@ def render_sidebar_controls():
         )
 
         auto_cluster = st.checkbox("Auto-detect clusters", value=True)
-        num_clusters = None
+        n_clusters = None
         if not auto_cluster:
-            num_clusters = st.slider(
+            n_clusters = st.slider(
                 "Number of clusters",
                 min_value=2,
                 max_value=10,
@@ -54,7 +78,7 @@ def render_sidebar_controls():
             key="threshold",
         )
 
-    return (num_clusters, threshold)
+    return (n_clusters, threshold)
 
 
 # ============================================================================
@@ -67,17 +91,19 @@ def render_input_actions(sample_text):
 
     with load_col:
         load_clicked = st.button(
+            "Load sample",
             type="secondary",
             use_container_width=True,
             key="button_load_sample",
-            **_BUTTON_ACTIONS["button_load_sample"],
+            help="Inserting the sample input",
         )
     with clear_col:
         clear_clicked = st.button(
+            "Clear",
             type="secondary",
             use_container_width=True,
             key="button_clear",
-            **_BUTTON_ACTIONS["button_clear"],
+            help="Clearing the input",
         )
 
     if load_clicked:
