@@ -51,10 +51,8 @@ def _validate_input(texts, current_hash):
 def _run_analysis(analyzer, texts, n_clusters):
     """Execute the full embedding -> similarity -> clustering pipeline."""
     analyzer.add_sentences(texts)
-    analyzer.get_embeddings()
-    analyzer.calculate_similarity()
-    analyzer.reduce_dimensions()
-    analyzer.perform_clustering(n_clusters)
+    analyzer.get_pca_coordinates()
+    analyzer.get_cluster_labels(n_clusters)
 
 
 def handle_analyze_click(texts, n_clusters, current_hash):
@@ -151,7 +149,7 @@ def _render_results(texts, n_clusters, current_hash, threshold):
 
     if n_clusters != st.session_state.get(state.STATE_CLUSTER_COUNT):
         try:
-            analyzer.perform_clustering(n_clusters)
+            analyzer.get_cluster_labels(n_clusters)
             st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
         except Exception as error:
             st.error(f"Re-clustering failed: {error}. Click Analyze to recompute.")
