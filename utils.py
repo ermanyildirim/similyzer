@@ -3,7 +3,6 @@ import html
 import textwrap
 import numpy as np
 
-from sklearn.preprocessing import StandardScaler
 
 # ============================================================================
 # Text Processing
@@ -59,10 +58,6 @@ def compute_content_hash(model_name, sentences):
 def upper_triangle(matrix):
     """Return upper-triangular values excluding the diagonal."""
     return matrix[np.triu_indices_from(matrix, k=1)]
-
-
-def normalize_coordinates(coordinates):
-    return StandardScaler().fit_transform(coordinates).astype(np.float32)
 
 
 def cluster_partitions(labels):
