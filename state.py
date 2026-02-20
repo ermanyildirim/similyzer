@@ -1,16 +1,35 @@
 import streamlit as st
-import config
 import numpy as np
 
+import config
 from analyzer import SentenceAnalyzer
 
-# Session state keys
+# ============================================================================
+# Session State Keys & Defaults
+# ============================================================================
+
 STATE_ANALYZER = "analyzer"
 STATE_ANALYSIS_HASH = "analysis_hash"
 STATE_CLUSTER_COUNT = "cluster_count"
 STATE_INPUT_TEXT = "input_text"
 STATE_TOKEN_STATS = "token_stats"
 STATE_TOKEN_STATS_HASH = "token_stats_hash"
+
+_STATE_DEFAULTS = {
+    STATE_ANALYZER: None,
+    STATE_ANALYSIS_HASH: None,
+    STATE_CLUSTER_COUNT: None,
+    STATE_INPUT_TEXT: "",
+    STATE_TOKEN_STATS: None,
+    STATE_TOKEN_STATS_HASH: None,
+}
+
+_INVALIDATION_KEYS = [
+    STATE_ANALYSIS_HASH,
+    STATE_CLUSTER_COUNT,
+    STATE_TOKEN_STATS,
+    STATE_TOKEN_STATS_HASH,
+]
 
 
 # ============================================================================
@@ -19,28 +38,21 @@ STATE_TOKEN_STATS_HASH = "token_stats_hash"
 
 
 def init_state():
-    st.session_state.setdefault(STATE_ANALYZER, None)
-    st.session_state.setdefault(STATE_ANALYSIS_HASH, None)
-    st.session_state.setdefault(STATE_CLUSTER_COUNT, None)
-    st.session_state.setdefault(STATE_INPUT_TEXT, "")
-    st.session_state.setdefault(STATE_TOKEN_STATS, None)
-    st.session_state.setdefault(STATE_TOKEN_STATS_HASH, None)
+    for key, default in _STATE_DEFAULTS.items():
+        st.session_state.setdefault(key, default)
 
 
 def invalidate_analysis_state():
-    st.session_state[STATE_ANALYSIS_HASH] = None
-    st.session_state[STATE_CLUSTER_COUNT] = None
-    st.session_state[STATE_TOKEN_STATS] = None
-    st.session_state[STATE_TOKEN_STATS_HASH] = None
+    for key in _INVALIDATION_KEYS:
+        st.session_state[key] = None
 
 
 def get_analyzer(model_name):
     """Get or create a cached analyzer instance for the model."""
     analyzer = st.session_state.get(STATE_ANALYZER)
     current_model = getattr(analyzer, "model_name", None)
-    is_new_model = analyzer is None or current_model != model_name
 
-    if is_new_model:
+    if analyzer is None or current_model != model_name:
         analyzer = SentenceAnalyzer(model_name)
         st.session_state[STATE_ANALYZER] = analyzer
         invalidate_analysis_state()
@@ -58,7 +70,7 @@ def _compute_token_stats(model, texts):
     model_max = model.max_seq_length or 0
     token_lengths = model.tokenize(texts)["attention_mask"].sum(axis=1).numpy()
     max_tokens = int(token_lengths.max()) if token_lengths.size else 0
-    
+
     return {
         "max_tokens": max_tokens,
         "model_max": model_max,
