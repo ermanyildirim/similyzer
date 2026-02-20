@@ -40,15 +40,11 @@ class SentenceAnalyzer:
         if not self.sentences:
             raise ValueError("No sentences provided")
 
-        embeddings = self.model.encode(
-            self.sentences,
-            show_progress_bar=False,
+        self.embeddings = np.asarray(
+            self.model.encode(self.sentences, show_progress_bar=False),
+            dtype=np.float32,
         )
-
-        embeddings = np.asarray(embeddings, dtype=np.float32)
-
-        self.embeddings = embeddings
-        return embeddings
+        return self.embeddings
 
     def calculate_similarity(self):
         """Compute cosine similarity matrix (or return cached)."""
@@ -76,12 +72,9 @@ class SentenceAnalyzer:
             return self._pca_coordinates
 
         num_components = min(2, self.embeddings.shape[1], num_sentences)
-
         pca = PCA(n_components=num_components, random_state=config.RANDOM_SEED)
-        coordinates = pca.fit_transform(self.embeddings)
-
-        self._pca_coordinates = coordinates
-        return coordinates
+        self._pca_coordinates = pca.fit_transform(self.embeddings)
+        return self._pca_coordinates
 
     def perform_clustering(self, num_clusters):
         """Perform K-Means clustering and compute quality metrics."""
@@ -105,9 +98,23 @@ class SentenceAnalyzer:
         self._compute_cluster_metrics()
         return self.cluster_labels
 
+    def get_top_pairs(self):
+        """Return scored pairs sorted by similarity (highest first)."""
+        if self.embeddings is None:
+            self.get_embeddings()
+        return util.paraphrase_mining_embeddings(self.embeddings)
+
     # ====================================================================
     # Private: Clustering
     # ====================================================================
+
+    def _create_kmeans(self, num_clusters):
+        """Create a KMeans instance with standard config."""
+        return KMeans(
+            n_clusters=num_clusters,
+            random_state=config.RANDOM_SEED,
+            n_init=config.KMEANS_N_INIT,
+        )
 
     def _auto_cluster(self):
         """Select optimal cluster count using silhouette score."""
@@ -138,29 +145,29 @@ class SentenceAnalyzer:
     def _kmeans_cluster(self, num_clusters):
         num_samples = self.embeddings.shape[0]
         cluster_count = max(1, min(num_clusters, num_samples))
-
-        kmeans = KMeans(
-            n_clusters=cluster_count,
-            random_state=config.RANDOM_SEED,
-            n_init=config.KMEANS_N_INIT,
-        )
-        self.cluster_labels = kmeans.fit_predict(self.embeddings)
+        self.cluster_labels = self._create_kmeans(cluster_count).fit_predict(self.embeddings)
 
     def _try_clustering(self, num_clusters):
         """Attempt K-Means and return (score, labels) or None on failure."""
         try:
-            kmeans = KMeans(
-                n_clusters=num_clusters,
-                random_state=config.RANDOM_SEED,
-                n_init=config.KMEANS_N_INIT,
-            )
-            labels = kmeans.fit_predict(self.embeddings)
+            labels = self._create_kmeans(num_clusters).fit_predict(self.embeddings)
 
             if np.unique(labels).size < 2:
                 return None
 
             score = float(silhouette_score(self.embeddings, labels, metric="cosine"))
             return score, labels
+        except ValueError:
+            return None
+
+    # ====================================================================
+    # Private: Metrics
+    # ====================================================================
+
+    def _safe_score(self, func, *args, **kwargs):
+        """Compute a scoring function, returning None on failure."""
+        try:
+            return float(func(*args, **kwargs))
         except ValueError:
             return None
 
@@ -192,23 +199,13 @@ class SentenceAnalyzer:
         if between.size:
             self.avg_between_clusters = float(between.mean())
 
-        # Silhouette score
         if num_samples > num_clusters:
-            try:
-                self.silhouette = float(
-                    silhouette_score(self.embeddings, self.cluster_labels, metric="cosine")
-                )
-            except ValueError:
-                pass
-
-        # Calinski-Harabasz Index (Variance Ratio Criterion)
-        if num_samples > num_clusters:
-            try:
-                self.calinski_harabasz = float(
-                    calinski_harabasz_score(self.embeddings, self.cluster_labels)
-                )
-            except ValueError:
-                pass
+            self.silhouette = self._safe_score(
+                silhouette_score, self.embeddings, self.cluster_labels, metric="cosine"
+            )
+            self.calinski_harabasz = self._safe_score(
+                calinski_harabasz_score, self.embeddings, self.cluster_labels
+            )
 
     # ====================================================================
     # Private: Utilities
@@ -223,4 +220,3 @@ class SentenceAnalyzer:
         self.calinski_harabasz = None
         self.avg_within_cluster = None
         self.avg_between_clusters = None
-
