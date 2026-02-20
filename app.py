@@ -127,13 +127,7 @@ def render_network_tab(analyzer, visualizer, threshold):
     if analyzer.similarity_matrix is None or len(analyzer.sentences) == 0:
         return
 
-    pairwise = utils.upper_triangle(analyzer.similarity_matrix)
-    if pairwise.size == 0:
-        avg_sim, min_sim, max_sim = 0.0, 0.0, 0.0
-    else:
-        avg_sim = float(pairwise.mean())
-        min_sim = float(pairwise.min())
-        max_sim = float(pairwise.max())
+    avg_sim, min_sim, max_sim = analyzer.get_pairwise_stats()
 
     top_nodes = network_stats["top_nodes"]
     top_nodes_display = ", ".join(f"{n} ({d})" for n, d in top_nodes) if top_nodes else "None"

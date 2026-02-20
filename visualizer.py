@@ -130,19 +130,8 @@ class PlotlyVisualizer:
         pairs = self.analyzer.get_top_pairs()
         k = min(int(num_pairs), len(pairs))
 
-        most_pairs = pairs[:k]
-        least_pairs = pairs[-k:][::-1]
-
-        most_data = self._pairs_data(
-            np.array([p[1] for p in most_pairs]),
-            np.array([p[2] for p in most_pairs]),
-            np.array([p[0] for p in most_pairs]),
-        )
-        least_data = self._pairs_data(
-            np.array([p[1] for p in least_pairs]),
-            np.array([p[2] for p in least_pairs]),
-            np.array([p[0] for p in least_pairs]),
-        )
+        most_data = self._pairs_data(*self._extract_pairs(pairs[:k]))
+        least_data = self._pairs_data(*self._extract_pairs(pairs[-k:][::-1]))
 
         fig = make_subplots(
             rows=1,
@@ -451,6 +440,13 @@ class PlotlyVisualizer:
     # ====================================================================
     # Private: Pairs
     # ====================================================================
+
+    def _extract_pairs(self, pairs):
+        """Unpack (score, source, target) triples into separate arrays."""
+        scores = np.array([p[0] for p in pairs])
+        sources = np.array([p[1] for p in pairs])
+        targets = np.array([p[2] for p in pairs])
+        return sources, targets, scores
 
     def _pairs_data(self, sources, targets, similarities):
         sentences = self.analyzer.sentences
