@@ -1,12 +1,29 @@
 import streamlit as st
 
 import config
-from state import (
-    STATE_INPUT_TEXT,
-    STATE_TOKEN_STATS,
-    STATE_TOKEN_STATS_HASH,
-    invalidate_analysis_state,
-)
+import state
+
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+_BUTTON_ACTIONS = {
+    "button_load_sample": {
+        "label": "Load sample",
+        "help": "Inserting the sample input",
+    },
+    "button_clear": {
+        "label": "Clear",
+        "help": "Clearing the input",
+    },
+}
+
+
+# ============================================================================
+# Sidebar
+# ============================================================================
+
 
 def render_sidebar_controls():
     """Render sidebar controls and return user settings."""
@@ -40,33 +57,41 @@ def render_sidebar_controls():
     return (num_clusters, threshold)
 
 
+# ============================================================================
+# Input Actions
+# ============================================================================
+
+
 def render_input_actions(sample_text):
     _, load_col, clear_col = st.columns([8, 3, 3])
 
     with load_col:
         load_clicked = st.button(
-            "Load sample",
             type="secondary",
             use_container_width=True,
-            help="Inserting the sample input",
             key="button_load_sample",
+            **_BUTTON_ACTIONS["button_load_sample"],
         )
     with clear_col:
         clear_clicked = st.button(
-            "Clear",
             type="secondary",
             use_container_width=True,
-            help="Clearing the input",
             key="button_clear",
+            **_BUTTON_ACTIONS["button_clear"],
         )
 
     if load_clicked:
-        st.session_state[STATE_INPUT_TEXT] = sample_text
-        invalidate_analysis_state()
+        st.session_state[state.STATE_INPUT_TEXT] = sample_text
+        state.invalidate_analysis_state()
 
     if clear_clicked:
-        st.session_state[STATE_INPUT_TEXT] = ""
-        invalidate_analysis_state()
+        st.session_state[state.STATE_INPUT_TEXT] = ""
+        state.invalidate_analysis_state()
+
+
+# ============================================================================
+# Text Area
+# ============================================================================
 
 
 def render_text_area():
@@ -75,12 +100,17 @@ def render_text_area():
     )
     return st.text_area(
         label="Input texts",
-        key=STATE_INPUT_TEXT,
+        key=state.STATE_INPUT_TEXT,
         label_visibility="collapsed",
         height=350,
         placeholder=placeholder,
         max_chars=20000,
     )
+
+
+# ============================================================================
+# Statistics Panel
+# ============================================================================
 
 
 def _build_token_note(token_stats, model_max):
@@ -112,14 +142,12 @@ def _build_token_note(token_stats, model_max):
 
 
 def render_stats_panel(texts, current_hash):
-    # Basic stats
     st.metric("Number of texts:", len(texts))
     word_count = sum(len(t.split()) for t in texts) if texts else 0
     st.metric("Total words:", word_count)
 
-    # Token stats
-    token_stats = st.session_state.get(STATE_TOKEN_STATS)
-    token_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
+    token_stats = st.session_state.get(state.STATE_TOKEN_STATS)
+    token_hash = st.session_state.get(state.STATE_TOKEN_STATS_HASH)
 
     if not (token_stats and token_hash == current_hash):
         st.metric("Maximum tokens per line:", "—")
@@ -135,6 +163,5 @@ def render_stats_panel(texts, current_hash):
         display_value = max_tokens
     st.metric("Maximum tokens per line:", display_value)
 
-    # Token note
     note = _build_token_note(token_stats, model_max)
     st.markdown(f"<div class='token-line-note'>{note}</div>", unsafe_allow_html=True)
