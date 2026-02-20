@@ -70,11 +70,13 @@ def _compute_token_stats(model, texts):
     model_max = model.max_seq_length or 0
     token_lengths = model.tokenize(texts)["attention_mask"].sum(axis=1).numpy()
     max_tokens = int(token_lengths.max()) if token_lengths.size else 0
+    too_long_lines = np.flatnonzero((model_max > 0) & (token_lengths > model_max)).tolist()
 
     return {
         "max_tokens": max_tokens,
         "model_max": model_max,
-        "too_long_lines": np.flatnonzero((model_max > 0) & (token_lengths > model_max)).tolist(),
+        "too_long_lines": too_long_lines,
+        "too_long": len(too_long_lines),
         "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist() if token_lengths.size else [],
     }
 
@@ -88,7 +90,6 @@ def update_token_stats(analyzer, texts, current_hash):
         return cached_stats
 
     stats = _compute_token_stats(analyzer.model, texts)
-    stats["too_long"] = len(stats["too_long_lines"])
 
     st.session_state[STATE_TOKEN_STATS] = stats
     st.session_state[STATE_TOKEN_STATS_HASH] = current_hash
