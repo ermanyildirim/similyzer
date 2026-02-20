@@ -140,31 +140,19 @@ def render_text_area():
 
 
 def _build_token_note(token_stats, model_max):
-    note_parts = []
+    parts = []
 
     if model_max > 0:
-        note_parts.append(f"Limit: {model_max}")
+        parts.append(f"Limit: {model_max}")
 
-    max_line_indices = token_stats["max_line_indices"]
-    if max_line_indices:
-        line_numbers = [str(i + 1) for i in max_line_indices]
-        shown = line_numbers[:config.MAX_SHOWN_LINES]
+    indices = token_stats["max_line_indices"]
+    if indices:
+        shown = [str(i + 1) for i in indices[:config.MAX_SHOWN_LINES]]
+        extra = f" (+{len(indices) - config.MAX_SHOWN_LINES} more)" if len(indices) > config.MAX_SHOWN_LINES else ""
+        label = "Maximum token line" if len(indices) == 1 else "Maximum token lines"
+        parts.append(f"{label}: {', '.join(shown)}{extra}")
 
-        if len(line_numbers) > config.MAX_SHOWN_LINES:
-            suffix = f" (+{len(line_numbers) - config.MAX_SHOWN_LINES} more)"
-        else:
-            suffix = ""
-
-        if len(line_numbers) == 1:
-            label = "Maximum token line"
-        else:
-            label = "Maximum token lines"
-
-        note_parts.append(f"{label}: {', '.join(shown)}{suffix}")
-
-    if note_parts:
-        return " • ".join(note_parts)
-    return "&nbsp;"
+    return " • ".join(parts) or "&nbsp;"
 
 
 def render_stats_panel(texts, current_hash):
