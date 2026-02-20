@@ -1,30 +1,11 @@
-from collections import namedtuple
-
 import streamlit as st
 
 import config
+import constants
+import state
 import styles
-from state import (
-    STATE_ANALYSIS_HASH,
-    STATE_ANALYZER,
-    STATE_CLUSTER_COUNT,
-    build_token_limit_error,
-    get_analyzer,
-    init_state,
-    update_token_stats,
-)
-from ui_components import (
-    render_input_actions,
-    render_sidebar_controls,
-    render_stats_panel,
-    render_text_area,
-)
-from utils import (
-    cluster_partitions,
-    compute_content_hash,
-    parse_texts,
-    upper_triangle,
-)
+import ui_components as ui
+import utils
 from visualizer import PlotlyVisualizer
 
 st.set_page_config(
@@ -33,90 +14,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-# ============================================================================
-# Constants
-# ============================================================================
-
-SAMPLE_TEXTS = """Barcelona is a popular travel destination with its stunning architecture and dynamic atmosphere.
-Tokyo is a fascinating travel destination where tradition and innovation meet.
-The United States of America offers a wide variety of travel experiences.
-Antalya is one of the most popular tourist destinations in Turkey.
-The lights and sounds at the festival created an unforgettable experience for everyone.
-The movie got more interesting as the story went on.
-The use of mirrors in horror films often suggests a hidden danger.
-The atmosphere in the stadium during a big match can be electric.
-Experimenting with different charts makes it easier to reveal hidden insights.
-Data visualization is an effective technique to understand complex information."""
-
-TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
-
-# ============================================================================
-# Metric Descriptions
-# ============================================================================
-
-MetricDescription = namedtuple("MetricDescription", ["label", "format", "help"])
-
-METRIC_DESCRIPTIONS = {
-    "network": [
-        MetricDescription(
-            "Average pair cosine similarity", ".3f",
-            "Average cosine similarity across all text pairs. "
-            "Values range from -1 (opposite) to 1 (very similar).",
-        ),
-        MetricDescription(
-            "Maximum pair cosine similarity", ".3f",
-            "Highest cosine similarity among all text pairs. "
-            "Values near 1 indicate nearly identical embeddings.",
-        ),
-        MetricDescription(
-            "Minimum pair cosine similarity", ".3f",
-            "Lowest cosine similarity among all text pairs. "
-            "Values near -1 indicate highly dissimilar embeddings.",
-        ),
-        MetricDescription(
-            "Average degree", ".2f",
-            "Average number of connections per node "
-            "in the similarity network (edges above the threshold).",
-        ),
-        MetricDescription(
-            "Network density", ".3f",
-            "Ratio of actual connections to all possible "
-            "connections in the similarity network.",
-        ),
-        MetricDescription(
-            "Top degree nodes", "",
-            "Nodes (text indices) with the highest number of connections; "
-            "displayed as Text ID (degree).",
-        ),
-    ],
-    "cluster_overview": [
-        MetricDescription("Number of clusters:", "", None),
-        MetricDescription("Smallest cluster size:", "", None),
-        MetricDescription("Largest cluster size:", "", None),
-    ],
-    "cluster_detail": [
-        MetricDescription(
-            "Silhouette score (cosine distance):", ".3f",
-            "Measures how well each text fits within its cluster "
-            "compared to other clusters; scores range from -1 to 1.",
-        ),
-        MetricDescription(
-            "Average within-cluster cosine similarity:", ".3f",
-            "Average cosine similarity of text pairs within the same cluster.",
-        ),
-        MetricDescription(
-            "Calinski-Harabasz Index:", ".1f",
-            "Calinski-Harabasz Index (Variance Ratio Criterion). "
-            "Measures cluster separation quality; higher values indicate "
-            "better-defined, well-separated clusters.",
-        ),
-        MetricDescription(
-            "Average between-cluster cosine similarity:", ".3f",
-            "Average cosine similarity of text pairs belonging to different clusters.",
-        ),
-    ],
-}
 
 
 # ============================================================================
@@ -139,13 +36,13 @@ def fa_heading(icon, text, level=3):
     )
 
 
-def format_metric(value, format=".3f"):
+def format_metric(value, fmt=".3f"):
     """Format a metric value for display, returning 'N/A' if None."""
     if value is None:
         return "N/A"
-    if isinstance(value, str) or not format:
+    if isinstance(value, str) or not fmt:
         return str(value)
-    return f"{value:{format}}"
+    return f"{value:{fmt}}"
 
 
 def render_metrics_grid(descriptions, values, columns=2):
@@ -156,7 +53,7 @@ def render_metrics_grid(descriptions, values, columns=2):
         cols = st.columns(columns)
         for col, (desc, value) in zip(cols, row):
             with col:
-                st.metric(desc.label, format_metric(value, desc.format), help=desc.help)
+                st.metric(desc.label, format_metric(value, desc.fmt), help=desc.help)
 
 
 # ============================================================================
@@ -175,13 +72,13 @@ def _validate_input(texts, current_hash):
             f"You entered {len(texts)} texts."
         )
 
-    analyzer = get_analyzer(config.MODEL_NAME)
-    token_stats = update_token_stats(analyzer, texts, current_hash)
-    token_error = build_token_limit_error(token_stats)
+    analyzer = state.get_analyzer(config.MODEL_NAME)
+    token_stats = state.update_token_stats(analyzer, texts, current_hash)
+    token_error = state.build_token_limit_error(token_stats)
     if token_error:
         return token_error
 
-    if st.session_state.get(STATE_ANALYSIS_HASH) == current_hash:
+    if st.session_state.get(state.STATE_ANALYSIS_HASH) == current_hash:
         return "Analysis is already up to date."
 
     return None
@@ -193,7 +90,7 @@ def _validate_input(texts, current_hash):
 
 
 def _run_analysis(analyzer, texts, num_clusters):
-    """Execute the full embedding → similarity → clustering pipeline."""
+    """Execute the full embedding -> similarity -> clustering pipeline."""
     analyzer.add_sentences(texts)
     analyzer.get_embeddings()
     analyzer.calculate_similarity()
@@ -210,10 +107,10 @@ def handle_analyze_click(texts, num_clusters, current_hash):
 
     with st.spinner("Analyzing..."):
         try:
-            analyzer = get_analyzer(config.MODEL_NAME)
+            analyzer = state.get_analyzer(config.MODEL_NAME)
             _run_analysis(analyzer, texts, num_clusters)
-            st.session_state[STATE_ANALYSIS_HASH] = current_hash
-            st.session_state[STATE_CLUSTER_COUNT] = num_clusters
+            st.session_state[state.STATE_ANALYSIS_HASH] = current_hash
+            st.session_state[state.STATE_CLUSTER_COUNT] = num_clusters
         except Exception as error:
             st.error(f"Analysis failed: {error}")
 
@@ -231,7 +128,7 @@ def render_network_tab(analyzer, visualizer, threshold):
     if analyzer.similarity_matrix is None or len(analyzer.sentences) == 0:
         return
 
-    pairwise = upper_triangle(analyzer.similarity_matrix)
+    pairwise = utils.upper_triangle(analyzer.similarity_matrix)
     if pairwise.size == 0:
         avg_sim, min_sim, max_sim = 0.0, 0.0, 0.0
     else:
@@ -244,7 +141,7 @@ def render_network_tab(analyzer, visualizer, threshold):
 
     values = [avg_sim, max_sim, min_sim, network_stats["avg_degree"],
               network_stats["density"], top_nodes_display]
-    render_metrics_grid(METRIC_DESCRIPTIONS["network"], values)
+    render_metrics_grid(constants.METRIC_DESCRIPTIONS["network"], values)
 
 
 def render_clusters_tab(analyzer, visualizer):
@@ -254,22 +151,19 @@ def render_clusters_tab(analyzer, visualizer):
     if analyzer.cluster_labels is None:
         return
 
-    cluster_indices = cluster_partitions(analyzer.cluster_labels)
+    cluster_indices = utils.cluster_partitions(analyzer.cluster_labels)
     cluster_sizes = [len(members) for members in cluster_indices]
 
-    # Overview
     fa_heading("eye", "Overview")
     overview_values = [len(cluster_sizes), min(cluster_sizes, default=0),
                        max(cluster_sizes, default=0)]
-    render_metrics_grid(METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
+    render_metrics_grid(constants.METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
 
-    # Metrics
     fa_heading("chart-line", "Metrics")
     detail_values = [analyzer.silhouette, analyzer.avg_within_cluster,
                      analyzer.calinski_harabasz, analyzer.avg_between_clusters]
-    render_metrics_grid(METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
+    render_metrics_grid(constants.METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
 
-    # Texts by cluster
     fa_heading("layer-group", "Texts by Cluster")
     for cluster_id, text_indices in enumerate(cluster_indices):
         with st.expander(f"Cluster {cluster_id + 1} ({len(text_indices)} texts)"):
@@ -289,13 +183,12 @@ def render_pairs_tab(visualizer):
 
 def _render_results(texts, num_clusters, current_hash, threshold):
     """Check analysis state and render result tabs if ready."""
-    analyzer = st.session_state.get(STATE_ANALYZER)
-    analysis_hash = st.session_state.get(STATE_ANALYSIS_HASH)
+    analyzer = st.session_state.get(state.STATE_ANALYZER)
+    analysis_hash = st.session_state.get(state.STATE_ANALYSIS_HASH)
 
     if analyzer is None or analysis_hash is None:
         return
 
-    # Check if results are stale
     if current_hash != analysis_hash:
         msg = ("Input is empty. Enter texts and click Analyze to see results."
                if not texts else
@@ -303,22 +196,20 @@ def _render_results(texts, num_clusters, current_hash, threshold):
         (st.info if not texts else st.warning)(msg)
         return
 
-    # Re-cluster if cluster count changed (without full re-analysis)
-    if num_clusters != st.session_state.get(STATE_CLUSTER_COUNT):
+    if num_clusters != st.session_state.get(state.STATE_CLUSTER_COUNT):
         try:
             analyzer.perform_clustering(num_clusters)
-            st.session_state[STATE_CLUSTER_COUNT] = num_clusters
+            st.session_state[state.STATE_CLUSTER_COUNT] = num_clusters
         except Exception as error:
             st.error(f"Re-clustering failed: {error}. Click Analyze to recompute.")
             return
 
-    # Render analysis results
     visualizer = PlotlyVisualizer(analyzer)
 
     st.markdown("---")
     fa_heading("chart-pie", "Analysis Results", level=2)
 
-    network_tab, clusters_tab, pairs_tab = st.tabs(TAB_LABELS)
+    network_tab, clusters_tab, pairs_tab = st.tabs(constants.TAB_LABELS)
 
     with network_tab:
         render_network_tab(analyzer, visualizer, threshold)
@@ -332,15 +223,13 @@ def main():
     st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
     st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
     fa_heading("magnifying-glass-chart", "Similyzer", level=1)
-    init_state()
+    state.init_state()
 
-    # Sidebar controls
-    num_clusters, threshold = render_sidebar_controls()
+    num_clusters, threshold = ui.render_sidebar_controls()
 
-    # Header row: input actions and stats title
     header_left, header_right = st.columns([3, 1])
     with header_left:
-        render_input_actions(SAMPLE_TEXTS)
+        ui.render_input_actions(constants.SAMPLE_TEXTS)
     with header_right:
         st.markdown(
             "<div class='section-title'>"
@@ -349,25 +238,23 @@ def main():
             unsafe_allow_html=True,
         )
 
-    # Body row: text area and stats panel
     body_left, body_right = st.columns([3, 1])
     with body_left:
-        raw_input = render_text_area()
+        raw_input = ui.render_text_area()
 
-    texts = parse_texts(raw_input)
-    current_hash = compute_content_hash(config.MODEL_NAME, texts)
+    texts = utils.parse_texts(raw_input)
+    current_hash = utils.compute_content_hash(config.MODEL_NAME, texts)
 
     with body_right:
         stats_placeholder = st.empty()
 
-    # Analyze button
     analyze_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     if analyze_clicked:
         handle_analyze_click(texts, num_clusters, current_hash)
 
     with stats_placeholder.container():
-        render_stats_panel(texts, current_hash)
+        ui.render_stats_panel(texts, current_hash)
 
     _render_results(texts, num_clusters, current_hash, threshold)
 
