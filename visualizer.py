@@ -72,7 +72,7 @@ class PlotlyVisualizer:
         if n_sentences == 0:
             return self._empty_figure("No texts"), empty_stats
         if n_sentences == 1:
-            fig = self._single_node_network(self.analyzer.reduce_dimensions())
+            fig = self._single_node_network(self.analyzer.get_pca_coordinates())
             return fig, empty_stats
 
         similarity = self.analyzer.similarity_matrix.astype(np.float32)
@@ -112,7 +112,7 @@ class PlotlyVisualizer:
 
     def create_cluster_visualization(self):
         """Create cluster visualization using PCA coordinates."""
-        coordinates = self.analyzer.reduce_dimensions()
+        coordinates = self.analyzer.get_pca_coordinates()
         labels = np.asarray(self.analyzer.cluster_labels, dtype=np.int32)
 
         if len(self.analyzer.sentences) == 0:
@@ -445,8 +445,8 @@ class PlotlyVisualizer:
 
     def _extract_pairs(self, pairs):
         """Unpack (score, source, target) triples into separate arrays."""
-        scores, sources, targets = zip(*pairs) if pairs else ([], [], [])
-        return np.array(sources), np.array(targets), np.array(scores)
+        similarities, sources, targets = zip(*pairs) if pairs else ([], [], [])
+        return np.array(sources), np.array(targets), np.array(similarities)
 
     def _pairs_data(self, sources, targets, similarities):
         sentences = self.analyzer.sentences
