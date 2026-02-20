@@ -65,22 +65,26 @@ class PlotlyVisualizer:
     # ====================================================================
 
     def create_similarity_network(self, threshold):
-        num_nodes = len(self.analyzer.sentences)
+        n_sentences = len(self.analyzer.sentences)
 
         empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
 
-        if num_nodes == 0:
+        if n_sentences == 0:
             return self._empty_figure("No texts"), empty_stats
-        if num_nodes == 1:
+        if n_sentences == 1:
             fig = self._single_node_network(self.analyzer.reduce_dimensions())
             return fig, empty_stats
 
         similarity = self.analyzer.similarity_matrix.astype(np.float32)
-        coordinates = self._compute_network_layout(similarity, threshold)
-        node_stats = self._compute_node_stats(similarity, threshold)
+
+        adjacency = np.where(similarity > threshold, similarity, 0.0)
+        np.fill_diagonal(adjacency, 0.0)
+
+        coordinates = self._compute_network_layout(adjacency)
+        node_stats = self._compute_node_stats(similarity, adjacency)
 
         edges, edge_hover = self._build_edge_traces(
-            similarity, coordinates[:, 0], coordinates[:, 1], threshold
+            similarity, adjacency, coordinates[:, 0], coordinates[:, 1], threshold
         )
 
         labels = self.analyzer.cluster_labels
@@ -122,13 +126,13 @@ class PlotlyVisualizer:
             fig, "Clusters (PCA)", show_legend=True, axis_style=self._GRID_AXIS
         )
 
-    def create_top_pairs_chart(self, num_pairs):
-        num_texts = len(self.analyzer.sentences)
-        if num_texts < 2:
+    def create_top_pairs_chart(self, n_pairs):
+        n_sentences = len(self.analyzer.sentences)
+        if n_sentences < 2:
             return self._empty_figure("Need at least 2 texts")
 
         pairs = self.analyzer.get_top_pairs()
-        k = min(int(num_pairs), len(pairs))
+        k = min(int(n_pairs), len(pairs))
 
         most_data = self._pairs_data(*self._extract_pairs(pairs[:k]))
         least_data = self._pairs_data(*self._extract_pairs(pairs[-k:][::-1]))
@@ -243,18 +247,16 @@ class PlotlyVisualizer:
     # Private: Network
     # ====================================================================
 
-    def _compute_network_layout(self, similarity, threshold):
-        adjacency = np.where(similarity <= threshold, 0.0, similarity)
-        np.fill_diagonal(adjacency, 0.0)
+    def _compute_network_layout(self, adjacency):
         graph = nx.from_numpy_array(adjacency)
         pos = nx.spring_layout(graph, weight="weight", seed=config.RANDOM_SEED, dim=2)
         coordinates = np.array(list(pos.values()), dtype=np.float32)
         return StandardScaler().fit_transform(coordinates).astype(np.float32)
 
-    def _compute_node_stats(self, similarity, threshold):
-        num_nodes = similarity.shape[0]
+    def _compute_node_stats(self, similarity, adjacency):
+        n_sentences = similarity.shape[0]
 
-        if num_nodes <= 1:
+        if n_sentences <= 1:
             default = self._NODE_SIZE_BASE + self._NODE_SIZE_SCALE
             return {
                 "avg_similarity": [0.0],
@@ -265,18 +267,18 @@ class PlotlyVisualizer:
                 "top_nodes": [],
             }
 
-        avg_similarity = ((similarity.sum(axis=1) - 1.0) / (num_nodes - 1)).tolist()
-        diagonal_mask = np.eye(num_nodes, dtype=bool)
+        avg_similarity = ((similarity.sum(axis=1) - 1.0) / (n_sentences - 1)).tolist()
+        diagonal_mask = np.eye(n_sentences, dtype=bool)
         max_similarity = (
             np.where(diagonal_mask, -np.inf, similarity).max(axis=1).tolist()
         )
 
-        connections = np.maximum((similarity > threshold).sum(axis=1) - 1, 0)
-        ratio = connections / (num_nodes - 1)
+        connections = np.maximum((adjacency > 0).sum(axis=1) - 1, 0)
+        ratio = connections / (n_sentences - 1)
         sizes = (self._NODE_SIZE_BASE + ratio * self._NODE_SIZE_SCALE).tolist()
 
         degrees = connections.astype(np.float32)
-        total_edges = num_nodes * (num_nodes - 1) / 2.0
+        total_edges = n_sentences * (n_sentences - 1) / 2.0
         actual_edges = float(degrees.sum()) / 2.0
 
         top_indices = np.argsort(degrees)[-3:][::-1]
@@ -293,11 +295,11 @@ class PlotlyVisualizer:
             "top_nodes": top_nodes,
         }
 
-    def _build_edge_traces(self, similarity, node_x, node_y, threshold):
-        num_nodes = similarity.shape[0]
-        sources, targets = np.triu_indices(num_nodes, k=1)
+    def _build_edge_traces(self, similarity, adjacency, node_x, node_y, threshold):
+        n_sentences = similarity.shape[0]
+        sources, targets = np.triu_indices(n_sentences, k=1)
         similarities = similarity[sources, targets]
-        mask = similarities > threshold
+        mask = adjacency[sources, targets] > 0
 
         if not np.any(mask):
             return [], go.Scatter(
@@ -443,10 +445,8 @@ class PlotlyVisualizer:
 
     def _extract_pairs(self, pairs):
         """Unpack (score, source, target) triples into separate arrays."""
-        scores = np.array([p[0] for p in pairs])
-        sources = np.array([p[1] for p in pairs])
-        targets = np.array([p[2] for p in pairs])
-        return sources, targets, scores
+        scores, sources, targets = zip(*pairs) if pairs else ([], [], [])
+        return np.array(sources), np.array(targets), np.array(scores)
 
     def _pairs_data(self, sources, targets, similarities):
         sentences = self.analyzer.sentences
