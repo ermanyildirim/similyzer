@@ -1,7 +1,6 @@
 import streamlit as st
 
 import config
-import constants
 import state
 import styles
 import ui_components as ui
@@ -141,7 +140,7 @@ def render_network_tab(analyzer, visualizer, threshold):
 
     values = [avg_sim, max_sim, min_sim, network_stats["avg_degree"],
               network_stats["density"], top_nodes_display]
-    render_metrics_grid(constants.METRIC_DESCRIPTIONS["network"], values)
+    render_metrics_grid(config.METRIC_DESCRIPTIONS["network"], values)
 
 
 def render_clusters_tab(analyzer, visualizer):
@@ -157,12 +156,12 @@ def render_clusters_tab(analyzer, visualizer):
     fa_heading("eye", "Overview")
     overview_values = [len(cluster_sizes), min(cluster_sizes, default=0),
                        max(cluster_sizes, default=0)]
-    render_metrics_grid(constants.METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
+    render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_overview"], overview_values, columns=3)
 
     fa_heading("chart-line", "Metrics")
     detail_values = [analyzer.silhouette, analyzer.avg_within_cluster,
                      analyzer.calinski_harabasz, analyzer.avg_between_clusters]
-    render_metrics_grid(constants.METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
+    render_metrics_grid(config.METRIC_DESCRIPTIONS["cluster_detail"], detail_values)
 
     fa_heading("layer-group", "Texts by Cluster")
     for cluster_id, text_indices in enumerate(cluster_indices):
@@ -209,7 +208,7 @@ def _render_results(texts, num_clusters, current_hash, threshold):
     st.markdown("---")
     fa_heading("chart-pie", "Analysis Results", level=2)
 
-    network_tab, clusters_tab, pairs_tab = st.tabs(constants.TAB_LABELS)
+    network_tab, clusters_tab, pairs_tab = st.tabs(config.TAB_LABELS)
 
     with network_tab:
         render_network_tab(analyzer, visualizer, threshold)
@@ -229,7 +228,7 @@ def main():
 
     header_left, header_right = st.columns([3, 1])
     with header_left:
-        ui.render_input_actions(constants.SAMPLE_TEXTS)
+        ui.render_input_actions(config.SAMPLE_TEXTS)
     with header_right:
         st.markdown(
             "<div class='section-title'>"

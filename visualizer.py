@@ -1,11 +1,11 @@
 import networkx as nx
 import numpy as np
-from sentence_transformers import util
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.preprocessing import StandardScaler
 
 import config
-from utils import format_sentence_for_hover, normalize_coordinates
+from utils import format_sentence_for_hover
 
 
 class PlotlyVisualizer:
@@ -18,11 +18,38 @@ class PlotlyVisualizer:
     _TEXT_FONT_SIZE = 16
     _CHART_HEIGHT_SMALL = 450
 
+    _VIRIDIS_COLORS = [
+        "#440154", "#31688E", "#35B779", "#FDE725", "#3E4989",
+        "#1F9E89", "#B5DE2B", "#482878", "#26828E", "#6ECE58",
+    ]
+
+    _MODEBAR_STYLE = {
+        "orientation": "h",
+        "bgcolor": "rgba(0,0,0,0)",
+        "color": "rgba(255,255,255,0.85)",
+        "activecolor": "rgba(255,255,255,1)",
+    }
+
+    _BASE_LAYOUT = {
+        "template": "plotly_dark",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "font": {"color": "white"},
+    }
+
+    _GRID_AXIS = {
+        "showgrid": True,
+        "zeroline": True,
+        "showticklabels": False,
+        "gridcolor": "rgba(255,255,255,0.1)",
+    }
+
     _ORIGIN_STYLE = {
         "color": "rgba(255,255,255,0.4)",
         "symbol": "diamond",
         "line": {"color": "white", "width": 1.2},
     }
+
     _HOVER_LABEL = {
         "bgcolor": "rgba(0,0,0,0.90)",
         "font_family": "Arial",
@@ -69,7 +96,7 @@ class PlotlyVisualizer:
 
         fig = go.Figure(data=edges + [edge_hover] + nodes + [self._origin_marker()])
         fig = self._apply_layout(
-            fig, "Similarity Network", show_legend=True, axis_style=config.GRID_AXIS
+            fig, "Similarity Network", show_legend=True, axis_style=self._GRID_AXIS
         )
 
         network_stats = {
@@ -92,7 +119,7 @@ class PlotlyVisualizer:
         )
         fig = go.Figure(data=traces + [self._origin_marker()])
         return self._apply_layout(
-            fig, "Clusters (PCA)", show_legend=True, axis_style=config.GRID_AXIS
+            fig, "Clusters (PCA)", show_legend=True, axis_style=self._GRID_AXIS
         )
 
     def create_top_pairs_chart(self, num_pairs):
@@ -100,7 +127,7 @@ class PlotlyVisualizer:
         if num_texts < 2:
             return self._empty_figure("Need at least 2 texts")
 
-        pairs = util.paraphrase_mining_embeddings(self.analyzer.embeddings)
+        pairs = self.analyzer.get_top_pairs()
         k = min(int(num_pairs), len(pairs))
 
         most_pairs = pairs[:k]
@@ -124,8 +151,8 @@ class PlotlyVisualizer:
             horizontal_spacing=0.15,
         )
         for data, color, col in [
-            (most_data, config.VIRIDIS_COLORS[0], 1),
-            (least_data, config.VIRIDIS_COLORS[-1], 2),
+            (most_data, self._VIRIDIS_COLORS[0], 1),
+            (least_data, self._VIRIDIS_COLORS[-1], 2),
         ]:
             fig.add_trace(
                 go.Bar(
@@ -191,10 +218,10 @@ class PlotlyVisualizer:
         hover_font=16,
     ):
         layout_options = {
-            **config.BASE_LAYOUT,
+            **self._BASE_LAYOUT,
             "height": height or 600,
             "dragmode": "pan",
-            "modebar": config.MODEBAR_STYLE,
+            "modebar": self._MODEBAR_STYLE,
             "hoverlabel": {**self._HOVER_LABEL, "font_size": hover_font},
             "showlegend": show_legend,
         }
@@ -228,13 +255,12 @@ class PlotlyVisualizer:
     # ====================================================================
 
     def _compute_network_layout(self, similarity, threshold):
-        """Compute spring layout positions for network nodes."""
         adjacency = np.where(similarity <= threshold, 0.0, similarity)
         np.fill_diagonal(adjacency, 0.0)
         graph = nx.from_numpy_array(adjacency)
         pos = nx.spring_layout(graph, weight="weight", seed=config.RANDOM_SEED, dim=2)
         coordinates = np.array(list(pos.values()), dtype=np.float32)
-        return normalize_coordinates(coordinates)
+        return StandardScaler().fit_transform(coordinates).astype(np.float32)
 
     def _compute_node_stats(self, similarity, threshold):
         num_nodes = similarity.shape[0]
@@ -250,19 +276,16 @@ class PlotlyVisualizer:
                 "top_nodes": [],
             }
 
-        # Similarity stats per node
         avg_similarity = ((similarity.sum(axis=1) - 1.0) / (num_nodes - 1)).tolist()
         diagonal_mask = np.eye(num_nodes, dtype=bool)
         max_similarity = (
             np.where(diagonal_mask, -np.inf, similarity).max(axis=1).tolist()
         )
 
-        # Node sizes based on connection count
         connections = np.maximum((similarity > threshold).sum(axis=1) - 1, 0)
         ratio = connections / (num_nodes - 1)
         sizes = (self._NODE_SIZE_BASE + ratio * self._NODE_SIZE_SCALE).tolist()
 
-        # Network-level stats
         degrees = connections.astype(np.float32)
         total_edges = num_nodes * (num_nodes - 1) / 2.0
         actual_edges = float(degrees.sum()) / 2.0
@@ -296,7 +319,6 @@ class PlotlyVisualizer:
         targets = targets[mask]
         similarities = similarities[mask]
 
-        # Continuous strength in [0, 1]
         span = max(1e-9, 1.0 - threshold)
         strength = np.clip((similarities - threshold) / span, 0.0, 1.0)
 
@@ -323,7 +345,6 @@ class PlotlyVisualizer:
             line={"width": width, "color": f"rgba(102,126,234,{opacity:.2f})"},
         )
 
-        # Hover trace at edge midpoints
         midpoint_x = (node_x[sources] + node_x[targets]) * 0.5
         midpoint_y = (node_y[sources] + node_y[targets]) * 0.5
         hover_texts = [
@@ -374,7 +395,7 @@ class PlotlyVisualizer:
                 max_sim = max_similarity[i] if max_similarity is not None else None
                 hovers.append(self._build_node_hover(i, avg, max_sim))
 
-            color = config.VIRIDIS_COLORS[int(cluster_id) % len(config.VIRIDIS_COLORS)]
+            color = self._VIRIDIS_COLORS[int(cluster_id) % len(self._VIRIDIS_COLORS)]
             marker = {"color": color, "line": {"color": "white", "width": 2}}
             if sizes is not None:
                 marker["size"] = sizes[mask]
@@ -414,7 +435,7 @@ class PlotlyVisualizer:
                 hovertext=[hover],
                 marker={
                     "size": self._SINGLE_SIZE,
-                    "color": config.VIRIDIS_COLORS[0],
+                    "color": self._VIRIDIS_COLORS[0],
                     "line": {"color": "white", "width": 2},
                 },
                 showlegend=False,
