@@ -127,8 +127,8 @@ class PlotlyVisualizer:
         pairs = self.analyzer.get_top_pairs()
         k = min(int(n_pairs), len(pairs))
 
-        most_data = self._pairs_data(*self._extract_pairs(pairs[:k]))
-        least_data = self._pairs_data(*self._extract_pairs(pairs[-k:][::-1]))
+        most_data = self._pairs_data(pairs[:k])
+        least_data = self._pairs_data(pairs[-k:][::-1])
 
         fig = make_subplots(
             rows=1,
@@ -436,18 +436,13 @@ class PlotlyVisualizer:
     # Private: Pairs
     # ====================================================================
 
-    def _extract_pairs(self, pairs):
-        """Unpack (similarity, source, target) triples into separate arrays."""
-        similarities, sources, targets = zip(*pairs) if pairs else ([], [], [])
-        return np.array(sources), np.array(targets), np.array(similarities)
+    def _pairs_data(self, pairs):
+        if not pairs:
+            return {"labels": [], "hovers": [], "similarities": []}
 
-    def _pairs_data(self, sources, targets, similarities):
+        similarities, sources, targets = zip(*pairs)
+
         sentences = self.analyzer.sentences
-        sources, targets, similarities = (
-            sources.tolist(),
-            targets.tolist(),
-            similarities.tolist(),
-        )
         labels = [f"Text {s + 1} - Text {t + 1}" for s, t in zip(sources, targets)]
 
         def format_hover(text):
@@ -465,5 +460,5 @@ class PlotlyVisualizer:
         return {
             "labels": labels,
             "hovers": hovers,
-            "similarities": similarities,
+            "similarities": list(similarities),
         }
