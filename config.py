@@ -17,7 +17,7 @@ MAX_SHOWN_LINES = 6
 # Clustering
 # ============================================================================
 
-DEFAULT_MAX_CLUSTERS = 5
+AUTO_CLUSTER_MAX_K = 5
 KMEANS_N_INIT = 10
 RANDOM_SEED = 42
 
