@@ -87,12 +87,10 @@ class PlotlyVisualizer:
             similarity, adjacency, coordinates[:, 0], coordinates[:, 1], threshold
         )
 
-        labels = self.analyzer.cluster_labels
-
         nodes = self._build_cluster_traces(
             coordinates[:, 0],
             coordinates[:, 1],
-            labels,
+            self.analyzer.cluster_labels,
             node_stats["avg_similarity"],
             node_stats["max_similarity"],
             node_stats["sizes"],
@@ -103,12 +101,7 @@ class PlotlyVisualizer:
             fig, "Similarity Network", show_legend=True, axis_style=self._GRID_AXIS
         )
 
-        network_stats = {
-            "avg_degree": node_stats["avg_degree"],
-            "density": node_stats["density"],
-            "top_nodes": node_stats["top_nodes"],
-        }
-        return fig, network_stats
+        return fig, node_stats
 
     def create_cluster_visualization(self):
         """Create cluster visualization using PCA coordinates."""
@@ -444,7 +437,7 @@ class PlotlyVisualizer:
     # ====================================================================
 
     def _extract_pairs(self, pairs):
-        """Unpack (score, source, target) triples into separate arrays."""
+        """Unpack (similarity, source, target) triples into separate arrays."""
         similarities, sources, targets = zip(*pairs) if pairs else ([], [], [])
         return np.array(sources), np.array(targets), np.array(similarities)
 
