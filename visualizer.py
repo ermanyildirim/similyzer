@@ -95,7 +95,7 @@ class PlotlyVisualizer:
         coordinates = self._compute_network_layout(adjacency)
         node_stats = self._compute_node_stats(similarity, adjacency)
 
-        edges, edge_hover = self._build_edge_traces(
+        edge_line, edge_hover = self._build_edge_traces(
             similarity, adjacency, coordinates[:, 0], coordinates[:, 1], threshold
         )
 
@@ -108,7 +108,7 @@ class PlotlyVisualizer:
             node_stats["sizes"],
         )
 
-        fig = go.Figure(data=edges + [edge_hover] + nodes + [self._origin_marker()])
+        fig = go.Figure(data=[edge_line, edge_hover] + nodes + [self._origin_marker()])
         fig = self._apply_layout(
             fig, "Similarity Network", show_legend=True, axis_style=self._GRID_AXIS
         )
@@ -303,64 +303,45 @@ class PlotlyVisualizer:
 
 
     def _build_edge_traces(self, similarity, adjacency, node_x, node_y, threshold):
+        """Build edge line and hover traces for the similarity network."""
         n_sentences = similarity.shape[0]
         sources, targets = np.triu_indices(n_sentences, k=1)
         similarities = similarity[sources, targets]
         mask = adjacency[sources, targets] > 0
 
         if not np.any(mask):
-            return [], go.Scatter(
-                x=[], y=[], mode="markers", hoverinfo="text", showlegend=False
-            )
+            empty = go.Scatter(x=[], y=[], mode="markers", hoverinfo="text", showlegend=False)
+            return empty, empty
 
-        sources = sources[mask]
-        targets = targets[mask]
-        similarities = similarities[mask]
+        sources, targets, similarities = sources[mask], targets[mask], similarities[mask]
 
         span = max(1e-9, 1.0 - threshold)
         strength = np.clip((similarities - threshold) / span, 0.0, 1.0)
 
-        count = len(sources)
-        edge_x = np.empty(count * 3, dtype=np.float32)
-        edge_y = np.empty(count * 3, dtype=np.float32)
-        edge_x[0::3] = node_x[sources]
-        edge_x[1::3] = node_x[targets]
-        edge_x[2::3] = np.nan
-        edge_y[0::3] = node_y[sources]
-        edge_y[1::3] = node_y[targets]
-        edge_y[2::3] = np.nan
+        nans = np.full(len(sources), np.nan, dtype=np.float32)
+        edge_x = np.column_stack((node_x[sources], node_x[targets], nans)).ravel()
+        edge_y = np.column_stack((node_y[sources], node_y[targets], nans)).ravel()
 
         median_strength = float(np.median(strength))
-        width = 1.0 + median_strength * 5.0
-        opacity = 0.15 + median_strength * 0.55
-
         edge_trace = go.Scatter(
-            x=edge_x,
-            y=edge_y,
-            mode="lines",
-            hoverinfo="skip",
-            showlegend=False,
-            line={"width": width, "color": f"rgba(102,126,234,{opacity:.2f})"},
+            x=edge_x, y=edge_y,
+            mode="lines", hoverinfo="skip", showlegend=False,
+            line={"width": 1.0 + median_strength * 5.0,
+                "color": f"rgba(102,126,234,{0.15 + median_strength * 0.55:.2f})"},
         )
 
-        midpoint_x = (node_x[sources] + node_x[targets]) * 0.5
-        midpoint_y = (node_y[sources] + node_y[targets]) * 0.5
-        hover_texts = [
-            f"<b>Text {s + 1} - Text {t + 1}</b><br>Cosine similarity: {v:.3f}"
-            for s, t, v in zip(
-                sources.tolist(), targets.tolist(), similarities.tolist()
-            )
-        ]
         hover_trace = go.Scatter(
-            x=midpoint_x,
-            y=midpoint_y,
-            mode="markers",
-            hoverinfo="text",
-            hovertext=hover_texts,
+            x=(node_x[sources] + node_x[targets]) * 0.5,
+            y=(node_y[sources] + node_y[targets]) * 0.5,
+            mode="markers", hoverinfo="text",
+            hovertext=[
+                f"<b>Text {s + 1} - Text {t + 1}</b><br>Cosine similarity: {v:.3f}"
+                for s, t, v in zip(sources.tolist(), targets.tolist(), similarities.tolist())
+            ],
             marker={"size": 16, "color": "rgba(0,0,0,0)"},
             showlegend=False,
         )
-        return [edge_trace], hover_trace
+        return edge_trace, hover_trace
 
 
     def _build_cluster_traces(
