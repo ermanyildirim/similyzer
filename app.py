@@ -48,13 +48,6 @@ def _validate_input(texts, current_hash):
 # ============================================================================
 
 
-def _run_analysis(analyzer, texts, n_clusters):
-    """Execute the full embedding -> similarity -> clustering pipeline."""
-    analyzer.add_sentences(texts)
-    analyzer.get_pca_coordinates()
-    analyzer.get_cluster_labels(n_clusters)
-
-
 def handle_analyze_click(texts, n_clusters, current_hash):
     """Validate input and trigger analysis when Analyze button is clicked."""
     error = _validate_input(texts, current_hash)
@@ -65,7 +58,9 @@ def handle_analyze_click(texts, n_clusters, current_hash):
     with st.spinner("Analyzing..."):
         try:
             analyzer = state.get_analyzer(config.MODEL_NAME)
-            _run_analysis(analyzer, texts, n_clusters)
+            analyzer.add_sentences(texts)
+            analyzer.get_pca_coordinates()
+            analyzer.get_cluster_labels(n_clusters)
             st.session_state[state.STATE_ANALYSIS_HASH] = current_hash
             st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
         except Exception as error:
