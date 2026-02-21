@@ -65,6 +65,7 @@ class PlotlyVisualizer:
     # ====================================================================
 
     def create_similarity_network(self, threshold):
+        """Build an interactive similarity network graph and return (figure, stats)."""
         n_sentences = len(self.analyzer.sentences)
 
         empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
@@ -72,7 +73,18 @@ class PlotlyVisualizer:
         if n_sentences == 0:
             return self._empty_figure("No texts"), empty_stats
         if n_sentences == 1:
-            fig = self._single_node_network(self.analyzer.get_pca_coordinates())
+            coords = self.analyzer.get_pca_coordinates()
+            traces = self._build_cluster_traces(
+                coords[:, 0], coords[:, 1],
+                np.zeros(1, dtype=np.int32),
+                sizes=[self._SINGLE_SIZE],
+            )
+            fig = self._apply_layout(
+                go.Figure(data=traces + [self._origin_marker()]),
+                "Similarity Network",
+                axis_style={"showgrid": False, "zeroline": False, "showticklabels": False},
+                hover_font=14,
+            )
             return fig, empty_stats
 
         similarity = self.analyzer.similarity_matrix.astype(np.float32)
@@ -246,6 +258,7 @@ class PlotlyVisualizer:
         coordinates = np.array(list(pos.values()), dtype=np.float32)
         return StandardScaler().fit_transform(coordinates).astype(np.float32)
 
+
     def _compute_node_stats(self, similarity, adjacency):
         n_sentences = similarity.shape[0]
 
@@ -287,6 +300,7 @@ class PlotlyVisualizer:
             "density": actual_edges / total_edges,
             "top_nodes": top_nodes,
         }
+
 
     def _build_edge_traces(self, similarity, adjacency, node_x, node_y, threshold):
         n_sentences = similarity.shape[0]
@@ -348,6 +362,7 @@ class PlotlyVisualizer:
         )
         return [edge_trace], hover_trace
 
+
     def _build_cluster_traces(
         self,
         node_x,
@@ -401,36 +416,6 @@ class PlotlyVisualizer:
                 )
             )
         return traces
-
-    def _single_node_network(self, coordinates):
-        x = float(coordinates[0, 0]) if coordinates.size else 0.0
-        y = float(coordinates[0, 1]) if coordinates.size else 0.0
-        hover = self._build_node_hover(0)
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=[x],
-                y=[y],
-                mode="markers+text",
-                text=["Text 1"],
-                textposition="top center",
-                textfont={"size": self._TEXT_FONT_SIZE, "color": "white"},
-                hoverinfo="text",
-                hovertext=[hover],
-                marker={
-                    "size": self._SINGLE_SIZE,
-                    "color": self._VIRIDIS_COLORS[0],
-                    "line": {"color": "white", "width": 2},
-                },
-                showlegend=False,
-            )
-        )
-        return self._apply_layout(
-            fig,
-            "Similarity Network",
-            axis_style={"showgrid": False, "zeroline": False, "showticklabels": False},
-            hover_font=14,
-        )
 
     # ====================================================================
     # Private: Pairs
