@@ -117,11 +117,6 @@ def render_clusters_tab(analyzer, visualizer):
                 st.write(f"**Text {i + 1}:** {analyzer.sentences[i]}")
 
 
-def render_pairs_tab(visualizer):
-    """Render the top similar pairs bar chart."""
-    ui.show_chart(visualizer.create_top_pairs_chart(n_pairs=10))
-
-
 # ============================================================================
 # Main
 # ============================================================================
@@ -162,7 +157,7 @@ def _render_results(texts, n_clusters, current_hash, threshold):
     with clusters_tab:
         render_clusters_tab(analyzer, visualizer)
     with pairs_tab:
-        render_pairs_tab(visualizer)
+        ui.show_chart(visualizer.create_top_pairs_chart(n_pairs=10))
 
 
 def main():
