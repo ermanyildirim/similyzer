@@ -66,18 +66,21 @@ def get_analyzer(model_name):
 
 
 def _compute_token_stats(model, texts):
-    """Compute raw token statistics."""
     model_max = model.max_seq_length or 0
     token_lengths = model.tokenize(texts)["attention_mask"].sum(axis=1).numpy()
-    max_tokens = int(token_lengths.max()) if token_lengths.size else 0
-    too_long_lines = np.flatnonzero((model_max > 0) & (token_lengths > model_max)).tolist()
 
+    if not token_lengths.size:
+        return {"max_tokens": 0, "model_max": model_max, "too_long_lines": [],
+                "too_long": 0, "max_line_indices": []}
+
+    max_tokens = int(token_lengths.max())
+    too_long = np.flatnonzero((model_max > 0) & (token_lengths > model_max))
     return {
         "max_tokens": max_tokens,
         "model_max": model_max,
-        "too_long_lines": too_long_lines,
-        "too_long": len(too_long_lines),
-        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist() if token_lengths.size else [],
+        "too_long_lines": too_long.tolist(),
+        "too_long": len(too_long),
+        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist(),
     }
 
 
@@ -97,28 +100,18 @@ def update_token_stats(analyzer, texts, current_hash):
 
 
 def build_token_limit_error(token_stats):
-    """Build an error message when inputs exceed the model token limit."""
-    if not token_stats:
+    if not token_stats or token_stats["model_max"] <= 0 or not token_stats["too_long_lines"]:
         return None
 
     model_max = token_stats["model_max"]
-    overlimit_count = token_stats["too_long"]
-    overlimit_indices = token_stats["too_long_lines"]
+    indices = token_stats["too_long_lines"]
+    shown = [str(i + 1) for i in indices[:config.MAX_SHOWN_LINES]]
+    suffix = ", ..." if len(indices) > config.MAX_SHOWN_LINES else ""
 
-    if model_max <= 0 or overlimit_count <= 0:
-        return None
+    if len(indices) == 1:
+        return (f"Input is too long: Line {shown[0]} exceeds the model limit "
+                f"({model_max} tokens). Please shorten that line and try again.")
 
-    shown = [str(i + 1) for i in overlimit_indices[:config.MAX_SHOWN_LINES]]
-    suffix = ", ..." if len(overlimit_indices) > config.MAX_SHOWN_LINES else ""
-
-    if overlimit_count == 1:
-        return (
-            f"Input is too long: Line {shown[0]} exceeds the model limit ({model_max} tokens). "
-            f"Please shorten that line and try again."
-        )
-
-    return (
-        f"Input is too long: {overlimit_count} lines exceed the model limit ({model_max} tokens). "
-        f"Please shorten those lines and try again. "
-        f"Over-limit lines: {', '.join(shown)}{suffix}"
-    )
+    return (f"Input is too long: {len(indices)} lines exceed the model limit "
+            f"({model_max} tokens). Please shorten those lines and try again. "
+            f"Over-limit lines: {', '.join(shown)}{suffix}")
