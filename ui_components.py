@@ -1,4 +1,5 @@
 import streamlit as st
+from itertools import batched
 
 import config
 import state
@@ -34,12 +35,9 @@ def format_metric(value, fmt=".3f"):
 
 
 def render_metrics_grid(descriptions, values, columns=2):
-    """Render a grid of st.metric widgets from descriptions and values."""
-    for row_start in range(0, len(descriptions), columns):
-        row = zip(descriptions[row_start : row_start + columns],
-                  values[row_start : row_start + columns])
+    for chunk in batched(zip(descriptions, values), columns):
         cols = st.columns(columns)
-        for col, (desc, value) in zip(cols, row):
+        for col, (desc, value) in zip(cols, chunk):
             with col:
                 st.metric(desc.label, format_metric(value, desc.fmt), help=desc.help)
 
