@@ -279,7 +279,7 @@ class PlotlyVisualizer:
             np.where(diagonal_mask, -np.inf, similarity).max(axis=1).tolist()
         )
 
-        connections = np.maximum((adjacency > 0).sum(axis=1) - 1, 0)
+        connections = (adjacency > 0).sum(axis=1)
         ratio = connections / (n_sentences - 1)
         sizes = (self._NODE_SIZE_BASE + ratio * self._NODE_SIZE_SCALE).tolist()
 
