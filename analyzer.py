@@ -1,6 +1,7 @@
 import numpy as np
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
@@ -46,7 +47,7 @@ class SentenceAnalyzer:
         """Compute cosine similarity matrix (cached)."""
         if self.similarity_matrix is None:
             embeddings = self.get_embeddings()
-            self.similarity_matrix = util.cos_sim(embeddings, embeddings).numpy()
+            self.similarity_matrix = cosine_similarity(embeddings)
         return self.similarity_matrix
 
     def get_pca_coordinates(self):
