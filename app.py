@@ -20,8 +20,7 @@ st.set_page_config(
 # ============================================================================
 
 
-def _validate_input(texts, current_hash):
-    """Return an error message string if input is invalid, otherwise None."""
+def _validate_input(texts, current_hash, analyzer):
     if not texts:
         return "Please enter at least 1 text."
 
@@ -31,7 +30,6 @@ def _validate_input(texts, current_hash):
             f"You entered {len(texts)} texts."
         )
 
-    analyzer = state.get_analyzer(config.MODEL_NAME)
     token_stats = state.update_token_stats(analyzer, texts, current_hash)
     token_error = state.build_token_limit_error(token_stats)
     if token_error:
@@ -49,15 +47,14 @@ def _validate_input(texts, current_hash):
 
 
 def handle_analyze_click(texts, n_clusters, current_hash):
-    """Validate input and trigger analysis when Analyze button is clicked."""
-    error = _validate_input(texts, current_hash)
+    analyzer = state.get_analyzer(config.MODEL_NAME)
+    error = _validate_input(texts, current_hash, analyzer)
     if error:
         (st.info if "up to date" in error else st.error)(error)
         return
 
     with st.spinner("Analyzing..."):
         try:
-            analyzer = state.get_analyzer(config.MODEL_NAME)
             analyzer.add_sentences(texts)
             analyzer.get_pca_coordinates()
             analyzer.get_cluster_labels(n_clusters)
