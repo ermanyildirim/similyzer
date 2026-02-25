@@ -155,7 +155,7 @@ def _build_token_note(token_stats, model_max):
 
 def render_stats_panel(texts, current_hash):
     st.metric("Number of texts:", len(texts))
-    word_count = sum(len(t.split()) for t in texts) if texts else 0
+    word_count = sum(len(t.split()) for t in texts)
     st.metric("Total words:", word_count)
 
     token_stats = st.session_state.get(state.STATE_TOKEN_STATS)
@@ -169,10 +169,7 @@ def render_stats_panel(texts, current_hash):
     max_tokens = token_stats["max_tokens"]
     model_max = token_stats["model_max"]
 
-    if 0 < model_max < max_tokens:
-        display_value = f"{model_max}+"
-    else:
-        display_value = max_tokens
+    display_value = f"{model_max}+" if 0 < model_max < max_tokens else max_tokens
     st.metric("Maximum tokens per line:", display_value)
 
     note = _build_token_note(token_stats, model_max)
