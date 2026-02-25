@@ -164,11 +164,11 @@ class SentenceAnalyzer:
 
         # Within vs between cluster similarity
         row_idx, col_idx = np.triu_indices(n_sentences, k=1)
-        pairwise_sims = sim_matrix[row_idx, col_idx].astype(np.float32)
+        upper_sims = sim_matrix[row_idx, col_idx]
         same_cluster = labels[row_idx] == labels[col_idx]
 
-        within_sims = pairwise_sims[same_cluster]
-        between_sims = pairwise_sims[~same_cluster]
+        within_sims = upper_sims[same_cluster]
+        between_sims = upper_sims[~same_cluster]
 
         if within_sims.size:
             self.avg_within_cluster = float(within_sims.mean())
