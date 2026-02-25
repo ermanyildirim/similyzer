@@ -50,9 +50,8 @@ def invalidate_analysis_state():
 def get_analyzer(model_name):
     """Get or create a cached analyzer instance for the model."""
     analyzer = st.session_state.get(STATE_ANALYZER)
-    current_model = getattr(analyzer, "model_name", None)
 
-    if analyzer is None or current_model != model_name:
+    if analyzer is None or analyzer.model_name != model_name:
         analyzer = SentenceAnalyzer(model_name)
         st.session_state[STATE_ANALYZER] = analyzer
         invalidate_analysis_state()
@@ -67,20 +66,20 @@ def get_analyzer(model_name):
 
 def _compute_token_stats(model, texts):
     model_max = model.max_seq_length or 0
-    token_lengths = model.tokenize(texts)["attention_mask"].sum(axis=1).numpy()
+    tokenizer = model.tokenizer
+    token_lengths = np.array([
+        len(tokenizer.encode(t, add_special_tokens=True))
+        for t in texts
+    ])
 
-    if not token_lengths.size:
-        return {"max_tokens": 0, "model_max": model_max, "too_long_lines": [],
-                "too_long": 0, "max_line_indices": []}
-
-    max_tokens = int(token_lengths.max())
+    max_tokens = int(token_lengths.max()) if token_lengths.size else 0
     too_long = np.flatnonzero((model_max > 0) & (token_lengths > model_max))
+
     return {
         "max_tokens": max_tokens,
         "model_max": model_max,
         "too_long_lines": too_long.tolist(),
-        "too_long": len(too_long),
-        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist(),
+        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist() if max_tokens else [],
     }
 
 
