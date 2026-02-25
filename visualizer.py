@@ -70,8 +70,6 @@ class PlotlyVisualizer:
 
         empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
 
-        if n_sentences == 0:
-            return self._empty_figure("No texts"), empty_stats
         if n_sentences == 1:
             coords = self.analyzer.get_pca_coordinates()
             traces = self._build_cluster_traces(
@@ -87,7 +85,7 @@ class PlotlyVisualizer:
             )
             return fig, empty_stats
 
-        similarity = self.analyzer.similarity_matrix.astype(np.float32)
+        similarity = self.analyzer.get_similarity_matrix()
 
         adjacency = np.where(similarity > threshold, similarity, 0.0)
         np.fill_diagonal(adjacency, 0.0)
@@ -119,9 +117,6 @@ class PlotlyVisualizer:
         """Create cluster visualization using PCA coordinates."""
         coordinates = self.analyzer.get_pca_coordinates()
         labels = np.asarray(self.analyzer.cluster_labels, dtype=np.int32)
-
-        if len(self.analyzer.sentences) == 0:
-            return self._empty_figure("No texts")
 
         traces = self._build_cluster_traces(
             coordinates[:, 0], coordinates[:, 1], labels
