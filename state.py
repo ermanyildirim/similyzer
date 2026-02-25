@@ -65,21 +65,21 @@ def get_analyzer(model_name):
 
 
 def _compute_token_stats(model, texts):
-    model_max = model.max_seq_length or 0
+    model_max = model.max_seq_length or 0 # to avoid None for some models
     tokenizer = model.tokenizer
     token_lengths = np.array([
         len(tokenizer.encode(t, add_special_tokens=True))
         for t in texts
     ])
 
-    max_tokens = int(token_lengths.max()) if token_lengths.size else 0
+    max_tokens = int(token_lengths.max())
     too_long = np.flatnonzero((model_max > 0) & (token_lengths > model_max))
 
     return {
         "max_tokens": max_tokens,
         "model_max": model_max,
         "too_long_lines": too_long.tolist(),
-        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist() if max_tokens else [],
+        "max_line_indices": np.flatnonzero(token_lengths == max_tokens).tolist(),
     }
 
 
