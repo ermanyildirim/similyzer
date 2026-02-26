@@ -2,7 +2,7 @@ import numpy as np
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
 
@@ -97,27 +97,6 @@ class SentenceAnalyzer:
     # Clustering
     # ====================================================================
 
-    def _auto_cluster(self, embeddings):
-        """Select best k by trying all candidates and picking highest silhouette."""
-        n_sentences = embeddings.shape[0]
-        max_k = min(config.AUTO_CLUSTER_MAX_K, n_sentences - 1)
-
-        if max_k < 2:
-            return np.zeros(n_sentences, dtype=np.int32)
-
-        scores = {}
-        for k in range(2, max_k + 1):
-            labels = self._fit_kmeans(embeddings, k)
-            score = self._silhouette(embeddings, labels)
-            if score is not None:
-                scores[k] = (score, labels)
-
-        if not scores:
-            return np.zeros(n_sentences, dtype=np.int32)
-
-        best_k = max(scores, key=lambda k: scores[k][0])
-        return scores[best_k][1]
-
     def _fit_kmeans(self, embeddings, n_clusters):
         """Run KMeans and return cluster labels."""
         return KMeans(
@@ -125,7 +104,50 @@ class SentenceAnalyzer:
             random_state=config.RANDOM_SEED,
             n_init=config.KMEANS_N_INIT,
         ).fit_predict(embeddings)
+    
 
+    def _fit_agglomerative(self, embeddings, n_clusters):
+        """Run Agglomerative Clustering and return cluster labels."""
+        return AgglomerativeClustering(
+            n_clusters=n_clusters,
+            metric="cosine",
+            linkage="average",
+        ).fit_predict(embeddings)
+
+
+    def _auto_cluster(self, embeddings):
+        """Select best clustering by highest silhouette score.
+
+        Compares KMeans and Agglomerative across candidate k values.
+        """
+        n_sentences = embeddings.shape[0]
+        max_k = min(config.AUTO_CLUSTER_MAX_K, n_sentences - 1)
+
+        if max_k < 2:
+            return np.zeros(n_sentences, dtype=np.int32)
+
+        candidates = [
+            ("kmeans", self._fit_kmeans),
+            ("agglomerative", self._fit_agglomerative),
+        ]
+
+        best_score = -float("inf")
+        best_labels = None
+
+        # Try each algorithm at each k, keep the best silhouette score
+        for k in range(2, max_k + 1):
+            for _, fit_fn in candidates:
+                labels = fit_fn(embeddings, k)
+                score = self._silhouette(embeddings, labels)
+                if score is not None and score > best_score:
+                    best_score = score
+                    best_labels = labels
+
+        if best_labels is None:
+            return np.zeros(n_sentences, dtype=np.int32)
+
+        return best_labels
+    
     @staticmethod
     def _silhouette(embeddings, labels):
         """Return silhouette score, or None on failure."""
