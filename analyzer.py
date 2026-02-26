@@ -70,12 +70,19 @@ class SentenceAnalyzer:
         n_sentences = embeddings.shape[0]
 
         if n_sentences < 2:
+            self._cached_cluster_key = None
             self.cluster_labels = np.zeros(n_sentences, dtype=np.int32)
         elif n_clusters is None:
+            if self._cached_cluster_key == "auto":
+                return self.cluster_labels
             self.cluster_labels = self._auto_cluster(embeddings)
+            self._cached_cluster_key = "auto"
         else:
-            clamped = int(np.clip(n_clusters, 1, n_sentences))
-            self.cluster_labels = self._fit_kmeans(embeddings, clamped)
+            clamped = int(np.clip(n_clusters, 2, n_sentences))
+            if self._cached_cluster_key == clamped:
+                return self.cluster_labels
+            self.cluster_labels = self._best_for_k(embeddings, clamped)[0]
+            self._cached_cluster_key = clamped
 
         self._compute_cluster_metrics()
         return self.cluster_labels
@@ -113,35 +120,37 @@ class SentenceAnalyzer:
             metric="cosine",
             linkage="average",
         ).fit_predict(embeddings)
+    
+
+    def _best_for_k(self, embeddings, k):
+        """Compare KMeans and Agglomerative for a given k, return (labels, score)."""
+        kmeans_labels = self._fit_kmeans(embeddings, k)
+        agglomerative_labels = self._fit_agglomerative(embeddings, k)
+
+        kmeans_score = self._silhouette(embeddings, kmeans_labels)
+        agglomerative_score = self._silhouette(embeddings, agglomerative_labels)
+
+        if agglomerative_score is not None and (kmeans_score is None or agglomerative_score > kmeans_score):
+            return agglomerative_labels, agglomerative_score
+        return kmeans_labels, kmeans_score
 
 
     def _auto_cluster(self, embeddings):
-        """Select best clustering by highest silhouette score.
-
-        Compares KMeans and Agglomerative across candidate k values.
-        """
+        """Select best clustering by highest silhouette score across k values."""
         n_sentences = embeddings.shape[0]
         max_k = min(config.AUTO_CLUSTER_MAX_K, n_sentences - 1)
 
         if max_k < 2:
             return np.zeros(n_sentences, dtype=np.int32)
 
-        candidates = [
-            ("kmeans", self._fit_kmeans),
-            ("agglomerative", self._fit_agglomerative),
-        ]
-
         best_score = -float("inf")
         best_labels = None
 
-        # Try each algorithm at each k, keep the best silhouette score
         for k in range(2, max_k + 1):
-            for _, fit_fn in candidates:
-                labels = fit_fn(embeddings, k)
-                score = self._silhouette(embeddings, labels)
-                if score is not None and score > best_score:
-                    best_score = score
-                    best_labels = labels
+            labels, score = self._best_for_k(embeddings, k)
+            if score is not None and score > best_score:
+                best_score = score
+                best_labels = labels
 
         if best_labels is None:
             return np.zeros(n_sentences, dtype=np.int32)
@@ -223,3 +232,4 @@ class SentenceAnalyzer:
         self.calinski_harabasz = None
         self.avg_within_cluster = None
         self.avg_between_clusters = None
+        self._cached_cluster_key = None
