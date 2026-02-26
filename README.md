@@ -7,7 +7,7 @@ Semantic textual similarity application to visualize relationships between texts
 ## Features
 
 - **Similarity Network**: Force-directed graph showing text relationships based on cosine similarity
-- **Clustering**: K-Means clustering with automatic cluster detection
+- **Clustering**: Automatic clustering comparing K-Means and Agglomerative Clustering via silhouette score
 - **Top Pairs**: The most and least similar text (or sentence) pairs
 - **Metrics**: Silhouette score, Calinski-Harabasz index, within/between cluster similarity
 
