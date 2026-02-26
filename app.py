@@ -74,7 +74,7 @@ def render_network_tab(analyzer, visualizer, threshold):
     network_figure, network_stats = visualizer.create_similarity_network(threshold=threshold)
     ui.show_chart(network_figure)
 
-    if analyzer.similarity_matrix is None or len(analyzer.sentences) == 0:
+    if len(analyzer.sentences) == 0:
         return
 
     avg_sim, min_sim, max_sim = analyzer.get_pairwise_stats()

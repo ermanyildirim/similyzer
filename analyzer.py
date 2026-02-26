@@ -1,10 +1,12 @@
 import numpy as np
+import networkx as nx
 import streamlit as st
 from sentence_transformers import SentenceTransformer, util
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import StandardScaler
 
 import config
 from utils import upper_triangle
@@ -35,128 +37,135 @@ class SentenceAnalyzer:
 
     def get_embeddings(self):
         """Compute sentence embeddings (cached)."""
-        if self.embeddings is None:
+        if self._embeddings is None:
             if not self.sentences:
                 raise ValueError("No sentences provided")
-            self.embeddings = self.model.encode(
+            self._embeddings = self.model.encode(
                 self.sentences, show_progress_bar=False, convert_to_numpy=True,
             )
-        return self.embeddings
+        return self._embeddings
 
     def get_similarity_matrix(self):
         """Compute cosine similarity matrix (cached)."""
-        if self.similarity_matrix is None:
-            embeddings = self.get_embeddings()
-            self.similarity_matrix = cosine_similarity(embeddings)
-        return self.similarity_matrix
+        if self._similarity_matrix is None:
+            self._similarity_matrix = cosine_similarity(self.get_embeddings())
+        return self._similarity_matrix
 
     def get_pca_coordinates(self):
         """Reduce embeddings to 2D with PCA (cached)."""
-        if self.pca_coordinates is None:
+        if self._pca_coords is None:
             embeddings = self.get_embeddings()
-            n_sentences = len(self.sentences)
-            if n_sentences < 2:
-                self.pca_coordinates = np.zeros((1, 2), dtype=np.float32)
+            n = len(self.sentences)
+            if n < 2:
+                self._pca_coords = np.zeros((1, 2), dtype=np.float32)
             else:
-                n_components = min(2, embeddings.shape[1], n_sentences)
-                self.pca_coordinates = PCA(
-                    n_components=n_components, random_state=config.RANDOM_SEED,
+                components = min(2, embeddings.shape[1], n)
+                self._pca_coords = PCA(
+                    n_components=components, random_state=config.RANDOM_SEED,
                 ).fit_transform(embeddings)
-        return self.pca_coordinates
+        return self._pca_coords
+
+    def get_network_coordinates(self):
+        """Compute force-directed layout from full similarity matrix (cached)."""
+        if self._network_coords is None:
+            similarity = self.get_similarity_matrix()
+            n = similarity.shape[0]
+            if n < 2:
+                self._network_coords = np.zeros((max(n, 1), 2), dtype=np.float32)
+            else:
+                adj = similarity.copy()
+                np.fill_diagonal(adj, 0.0)
+                graph = nx.from_numpy_array(adj)
+                pos = nx.spring_layout(graph, weight="weight", seed=config.RANDOM_SEED)
+                coords = np.array(list(pos.values()), dtype=np.float32)
+                self._network_coords = StandardScaler().fit_transform(coords)
+        return self._network_coords
 
     def get_cluster_labels(self, n_clusters=None):
         """Cluster sentences. Auto-detect count when n_clusters is None."""
         embeddings = self.get_embeddings()
-        n_sentences = embeddings.shape[0]
+        n = embeddings.shape[0]
 
-        if n_sentences < 2:
-            self._cached_cluster_key = None
-            self.cluster_labels = np.zeros(n_sentences, dtype=np.int32)
+        if n < 2:
+            self._cluster_key = None
+            self.cluster_labels = np.zeros(n, dtype=np.int32)
         elif n_clusters is None:
-            if self._cached_cluster_key == "auto":
+            if self._cluster_key == "auto":
                 return self.cluster_labels
             self.cluster_labels = self._auto_cluster(embeddings)
-            self._cached_cluster_key = "auto"
+            self._cluster_key = "auto"
         else:
-            clamped = int(np.clip(n_clusters, 2, n_sentences))
-            if self._cached_cluster_key == clamped:
+            k = int(np.clip(n_clusters, 2, n))
+            if self._cluster_key == k:
                 return self.cluster_labels
-            self.cluster_labels = self._best_for_k(embeddings, clamped)[0]
-            self._cached_cluster_key = clamped
+            self.cluster_labels = self._best_for_k(embeddings, k)[0]
+            self._cluster_key = k
 
         self._compute_cluster_metrics()
         return self.cluster_labels
 
     def get_top_pairs(self):
         """Return sentence pairs sorted by similarity (cached)."""
-        if self.top_pairs is None:
-            self.top_pairs = util.paraphrase_mining_embeddings(self.get_embeddings())
-        return self.top_pairs
+        if self._top_pairs is None:
+            self._top_pairs = util.paraphrase_mining_embeddings(self.get_embeddings())
+        return self._top_pairs
 
     def get_pairwise_stats(self):
         """Return (mean, min, max) of upper-triangle similarities."""
-        upper_sims = upper_triangle(self.get_similarity_matrix())
-        if upper_sims.size == 0:
+        sims = upper_triangle(self.get_similarity_matrix())
+        if sims.size == 0:
             return 0.0, 0.0, 0.0
-        return float(upper_sims.mean()), float(upper_sims.min()), float(upper_sims.max())
+        return float(sims.mean()), float(sims.min()), float(sims.max())
 
     # ====================================================================
     # Clustering
     # ====================================================================
 
-    def _fit_kmeans(self, embeddings, n_clusters):
-        """Run KMeans and return cluster labels."""
+    def _fit_kmeans(self, embeddings, k):
         return KMeans(
-            n_clusters=n_clusters,
+            n_clusters=k,
             random_state=config.RANDOM_SEED,
             n_init=config.KMEANS_N_INIT,
         ).fit_predict(embeddings)
-    
 
-    def _fit_agglomerative(self, embeddings, n_clusters):
-        """Run Agglomerative Clustering and return cluster labels."""
+    def _fit_agglomerative(self, embeddings, k):
         return AgglomerativeClustering(
-            n_clusters=n_clusters,
-            metric="cosine",
-            linkage="average",
+            n_clusters=k, metric="cosine", linkage="average",
         ).fit_predict(embeddings)
-    
 
     def _best_for_k(self, embeddings, k):
         """Compare KMeans and Agglomerative for a given k, return (labels, score)."""
-        kmeans_labels = self._fit_kmeans(embeddings, k)
-        agglomerative_labels = self._fit_agglomerative(embeddings, k)
+        candidates = [
+            (self._fit_kmeans(embeddings, k), "kmeans"),
+            (self._fit_agglomerative(embeddings, k), "agglo"),
+        ]
+        scored = [
+            (labels, self._silhouette(embeddings, labels))
+            for labels, _ in candidates
+        ]
+        valid = [(l, s) for l, s in scored if s is not None]
 
-        kmeans_score = self._silhouette(embeddings, kmeans_labels)
-        agglomerative_score = self._silhouette(embeddings, agglomerative_labels)
-
-        if agglomerative_score is not None and (kmeans_score is None or agglomerative_score > kmeans_score):
-            return agglomerative_labels, agglomerative_score
-        return kmeans_labels, kmeans_score
-
+        if not valid:
+            return scored[0]
+        return max(valid, key=lambda x: x[1])
 
     def _auto_cluster(self, embeddings):
         """Select best clustering by highest silhouette score across k values."""
-        n_sentences = embeddings.shape[0]
-        max_k = min(config.AUTO_CLUSTER_MAX_K, n_sentences - 1)
+        n = embeddings.shape[0]
+        max_k = min(config.AUTO_CLUSTER_MAX_K, n - 1)
 
         if max_k < 2:
-            return np.zeros(n_sentences, dtype=np.int32)
+            return np.zeros(n, dtype=np.int32)
 
-        best_score = -float("inf")
-        best_labels = None
+        best_labels, best_score = None, -np.inf
 
         for k in range(2, max_k + 1):
             labels, score = self._best_for_k(embeddings, k)
             if score is not None and score > best_score:
-                best_score = score
-                best_labels = labels
+                best_labels, best_score = labels, score
 
-        if best_labels is None:
-            return np.zeros(n_sentences, dtype=np.int32)
+        return best_labels if best_labels is not None else np.zeros(n, dtype=np.int32)
 
-        return best_labels
-    
     @staticmethod
     def _silhouette(embeddings, labels):
         """Return silhouette score, or None on failure."""
@@ -175,39 +184,36 @@ class SentenceAnalyzer:
         """Compute within/between cluster similarities, silhouette and CH index."""
         sim_matrix = self.get_similarity_matrix()
         labels = self.cluster_labels
-        n_sentences = labels.size
-        n_unique_clusters = np.unique(labels).size
+        n = labels.size
+        n_clusters = np.unique(labels).size
 
         self.avg_within_cluster = None
         self.avg_between_clusters = None
         self.silhouette = None
         self.calinski_harabasz = None
 
-        if n_sentences < 2:
+        if n < 2:
             return
 
-        # Single cluster — overall similarity is the within-cluster similarity
-        if n_unique_clusters <= 1:
-            upper_sims = upper_triangle(sim_matrix)
-            if upper_sims.size:
-                self.avg_within_cluster = float(upper_sims.mean())
+        if n_clusters <= 1:
+            sims = upper_triangle(sim_matrix)
+            if sims.size:
+                self.avg_within_cluster = float(sims.mean())
             return
 
-        # Within vs between cluster similarity
-        row_idx, col_idx = np.triu_indices(n_sentences, k=1)
-        upper_sims = sim_matrix[row_idx, col_idx]
+        row_idx, col_idx = np.triu_indices(n, k=1)
+        pair_sims = sim_matrix[row_idx, col_idx]
         same_cluster = labels[row_idx] == labels[col_idx]
 
-        within_sims = upper_sims[same_cluster]
-        between_sims = upper_sims[~same_cluster]
+        within = pair_sims[same_cluster]
+        between = pair_sims[~same_cluster]
 
-        if within_sims.size:
-            self.avg_within_cluster = float(within_sims.mean())
-        if between_sims.size:
-            self.avg_between_clusters = float(between_sims.mean())
+        if within.size:
+            self.avg_within_cluster = float(within.mean())
+        if between.size:
+            self.avg_between_clusters = float(between.mean())
 
-        # Sklearn scoring
-        if n_sentences <= n_unique_clusters:
+        if n <= n_clusters:
             return
 
         embeddings = self.get_embeddings()
@@ -223,13 +229,14 @@ class SentenceAnalyzer:
     # ====================================================================
 
     def _reset(self):
-        self.embeddings = None
-        self.similarity_matrix = None
-        self.pca_coordinates = None
+        self._embeddings = None
+        self._similarity_matrix = None
+        self._pca_coords = None
+        self._network_coords = None
+        self._top_pairs = None
+        self._cluster_key = None
         self.cluster_labels = None
-        self.top_pairs = None
         self.silhouette = None
         self.calinski_harabasz = None
         self.avg_within_cluster = None
         self.avg_between_clusters = None
-        self._cached_cluster_key = None
