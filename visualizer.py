@@ -1,17 +1,39 @@
+from typing import TypedDict
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from analyzer import SentenceAnalyzer
 from utils import format_sentence_for_hover
+
+
+# ============================================================================
+# Structured Return Types
+# ============================================================================
+
+
+class NodeStats(TypedDict):
+    avg_similarity: list[float]
+    max_similarity: list[float]
+    sizes: list[float]
+    avg_degree: float
+    density: float
+    top_nodes: list[tuple[int, int]]
+
+
+class PairsData(TypedDict):
+    labels: list[str]
+    hovers: list[str]
+    similarities: list[float]
 
 
 class PlotlyVisualizer:
     """Plotly visualizations for similarity analysis."""
 
-    _CLUSTER_COLORS = [
-        "#440154", "#31688E", "#35B779", "#FDE725", "#3E4989",
-        "#1F9E89", "#B5DE2B", "#482878", "#26828E", "#6ECE58",
-    ]
+    # ====================================================================
+    # Edge Styling
+    # ====================================================================
 
     _EDGE_COLOR = "102,126,234"
     _EDGE_MIN_OPACITY = 0.25
@@ -19,16 +41,28 @@ class PlotlyVisualizer:
     _EDGE_MIN_WIDTH = 1.0
     _EDGE_MAX_WIDTH = 5.0
 
-    _CHART_HEIGHT = 600
-    _CHART_HEIGHT_SMALL = 450
+    # ====================================================================
+    # Node Styling
+    # ====================================================================
 
     _NODE_SIZE_BASE = 20.0
     _NODE_SIZE_SCALE = 40.0
     _NODE_DEFAULT_SIZE = 22.0
     _NODE_SINGLE_SIZE = 40
     _NODE_BORDER = {"color": "white", "width": 2}
-    
     _TEXT_FONT_SIZE = 16
+
+    # ====================================================================
+    # Chart Layout
+    # ====================================================================
+
+    _CHART_HEIGHT = 600
+    _CHART_HEIGHT_SMALL = 450
+
+    _CLUSTER_COLORS = [
+        "#440154", "#31688E", "#35B779", "#FDE725", "#3E4989",
+        "#1F9E89", "#B5DE2B", "#482878", "#26828E", "#6ECE58",
+    ]
 
     _ORIGIN_MARKER = {
         "size": 12,
@@ -60,16 +94,19 @@ class PlotlyVisualizer:
 
     _NO_AXIS = {"showgrid": False, "zeroline": False, "showticklabels": False}
 
-    def __init__(self, analyzer):
-        self.analyzer = analyzer
-
     # ====================================================================
     # Public API
     # ====================================================================
 
-    def create_similarity_network(self, threshold):
+    def __init__(self, analyzer: SentenceAnalyzer) -> None:
+        self.analyzer = analyzer
+
+    def create_similarity_network(self, threshold: float) -> tuple[go.Figure, NodeStats]:
         """Build an interactive similarity network graph and return (figure, stats)."""
-        empty_stats = {"avg_degree": 0.0, "density": 0.0, "top_nodes": []}
+        empty_stats: NodeStats = {
+            "avg_similarity": [], "max_similarity": [], "sizes": [],
+            "avg_degree": 0.0, "density": 0.0, "top_nodes": [],
+        }
 
         if len(self.analyzer.sentences) == 1:
             coords = self.analyzer.get_pca_coordinates()
@@ -103,7 +140,7 @@ class PlotlyVisualizer:
         fig = self._apply_layout(fig, "Similarity Network", show_legend=True, axis_style=self._GRID_AXIS)
         return fig, node_stats
 
-    def create_cluster_visualization(self):
+    def create_cluster_visualization(self) -> go.Figure:
         """Create cluster visualization using PCA coordinates."""
         coords = self.analyzer.get_pca_coordinates()
         labels = np.asarray(self.analyzer.cluster_labels, dtype=np.int32)
@@ -111,7 +148,7 @@ class PlotlyVisualizer:
         fig = self._scatter_figure(coords[:, 0], coords[:, 1], labels)
         return self._apply_layout(fig, "Clusters (PCA)", show_legend=True, axis_style=self._GRID_AXIS)
 
-    def create_top_pairs_chart(self, n_pairs):
+    def create_top_pairs_chart(self, n_pairs: int) -> go.Figure:
         """Create side-by-side bar charts for most and least similar pairs."""
         if len(self.analyzer.sentences) < 2:
             return self._empty_figure("Need at least 2 texts")
@@ -145,7 +182,15 @@ class PlotlyVisualizer:
     # Layout & Shared Traces
     # ====================================================================
 
-    def _apply_layout(self, fig, title=None, height=None, show_legend=False, axis_style=None, hover_font=16):
+    def _apply_layout(
+        self,
+        fig: go.Figure,
+        title: str | None = None,
+        height: int | None = None,
+        show_legend: bool = False,
+        axis_style: dict | None = None,
+        hover_font: int = 16,
+    ) -> go.Figure:
         options = {
             **self._BASE_LAYOUT,
             "height": height or self._CHART_HEIGHT,
@@ -165,14 +210,14 @@ class PlotlyVisualizer:
         fig.update_layout(**options)
         return fig
 
-    def _origin_trace(self):
+    def _origin_trace(self) -> go.Scatter:
         return go.Scatter(
             x=[0], y=[0], mode="markers",
             marker=self._ORIGIN_MARKER,
             hoverinfo="skip", showlegend=False,
         )
 
-    def _empty_figure(self, message):
+    def _empty_figure(self, message: str) -> go.Figure:
         fig = go.Figure()
         fig.add_annotation(
             text=message, xref="paper", yref="paper", x=0.5, y=0.5,
@@ -180,7 +225,13 @@ class PlotlyVisualizer:
         )
         return self._apply_layout(fig, height=self._CHART_HEIGHT_SMALL)
 
-    def _scatter_figure(self, x, y, labels, **kwargs):
+    def _scatter_figure(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        labels: np.ndarray,
+        **kwargs,
+    ) -> go.Figure:
         """Build a figure with cluster traces and origin marker."""
         traces = self._build_cluster_traces(x, y, labels, **kwargs)
         return go.Figure(data=traces + [self._origin_trace()])
@@ -190,12 +241,12 @@ class PlotlyVisualizer:
     # ====================================================================
 
     @staticmethod
-    def _threshold_adjacency(similarity, threshold):
+    def _threshold_adjacency(similarity: np.ndarray, threshold: float) -> np.ndarray:
         adjacency = np.where(similarity > threshold, similarity, 0.0)
         np.fill_diagonal(adjacency, 0.0)
         return adjacency
 
-    def _compute_node_stats(self, similarity, adjacency):
+    def _compute_node_stats(self, similarity: np.ndarray, adjacency: np.ndarray) -> NodeStats:
         n = similarity.shape[0]
 
         if n <= 1:
@@ -232,7 +283,14 @@ class PlotlyVisualizer:
             "top_nodes": top_nodes,
         }
 
-    def _build_edge_traces(self, similarity, adjacency, node_x, node_y, threshold):
+    def _build_edge_traces(
+        self,
+        similarity: np.ndarray,
+        adjacency: np.ndarray,
+        node_x: np.ndarray,
+        node_y: np.ndarray,
+        threshold: float,
+    ) -> tuple[list[go.Scatter], go.Scatter]:
         """Build per-edge line traces with individual width and opacity."""
         n = similarity.shape[0]
         sources, targets = np.triu_indices(n, k=1)
@@ -248,7 +306,7 @@ class PlotlyVisualizer:
         span = max(1e-9, 1.0 - threshold)
         strength = np.clip((sims - threshold) / span, 0.0, 1.0)
 
-        edge_traces = []
+        edge_traces: list[go.Scatter] = []
         for (s, t), w in zip(zip(sources, targets), strength):
             opacity = self._EDGE_MIN_OPACITY + w * (self._EDGE_MAX_OPACITY - self._EDGE_MIN_OPACITY)
             width = self._EDGE_MIN_WIDTH + w * (self._EDGE_MAX_WIDTH - self._EDGE_MIN_WIDTH)
@@ -276,7 +334,12 @@ class PlotlyVisualizer:
     # Cluster Traces
     # ====================================================================
 
-    def _build_node_hover(self, index, avg_sim=None, max_sim=None):
+    def _build_node_hover(
+        self,
+        index: int,
+        avg_sim: float | None = None,
+        max_sim: float | None = None,
+    ) -> str:
         preview = format_sentence_for_hover(self.analyzer.sentences[index])
         parts = [f"<b>Text {index + 1}</b><br><br>{preview}<br><br>"]
         if avg_sim is not None:
@@ -285,19 +348,27 @@ class PlotlyVisualizer:
             parts.append(f"<b>Maximum cosine similarity to any text:</b> {max_sim:.3f}<br>")
         return "".join(parts)
 
-    def _build_cluster_traces(self, node_x, node_y, labels, avg_similarity=None, max_similarity=None, sizes=None):
+    def _build_cluster_traces(
+        self,
+        node_x: np.ndarray,
+        node_y: np.ndarray,
+        labels: np.ndarray,
+        avg_similarity: np.ndarray | None = None,
+        max_similarity: np.ndarray | None = None,
+        sizes: np.ndarray | None = None,
+    ) -> list[go.Scatter]:
         node_x = np.asarray(node_x, dtype=np.float32)
         node_y = np.asarray(node_y, dtype=np.float32)
         labels = np.asarray(labels, dtype=np.int32)
 
-        def to_array(arr):
+        def to_array(arr: np.ndarray | list | None) -> np.ndarray | None:
             return np.asarray(arr, dtype=np.float32) if arr is not None else None
 
         avg_similarity = to_array(avg_similarity)
         max_similarity = to_array(max_similarity)
         sizes = to_array(sizes)
 
-        traces = []
+        traces: list[go.Scatter] = []
         for cluster_id in np.unique(labels):
             mask = labels == cluster_id
             indices = np.flatnonzero(mask)
@@ -335,7 +406,7 @@ class PlotlyVisualizer:
     # Pairs
     # ====================================================================
 
-    def _pairs_data(self, pairs):
+    def _pairs_data(self, pairs: list) -> PairsData:
         if not pairs:
             return {"labels": [], "hovers": [], "similarities": []}
 
