@@ -1,3 +1,7 @@
+import logging
+from dataclasses import dataclass
+from enum import Enum, auto
+
 import streamlit as st
 
 import config
@@ -5,6 +9,7 @@ import state
 import styles
 import ui_components as ui
 import utils
+from analyzer import SentenceAnalyzer
 from visualizer import PlotlyVisualizer
 
 st.set_page_config(
@@ -14,31 +19,42 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+logger = logging.getLogger(__name__)
+
 
 # ============================================================================
 # Validation
 # ============================================================================
 
 
-def _validate_input(texts, current_hash, analyzer):
+class ValidationStatus(Enum):
+    OK = auto()
+    UP_TO_DATE = auto()
+    ERROR = auto()
+
+
+@dataclass
+class ValidationResult:
+    status: ValidationStatus
+    message: str = ""
+
+
+def _validate_input(texts: list[str], input_hash: str | None) -> ValidationResult:
+    """Pure validation — no side effects."""
     if not texts:
-        return "Please enter at least 1 text."
+        return ValidationResult(ValidationStatus.ERROR, "Please enter at least 1 text.")
 
     if len(texts) > config.MAX_INPUT_TEXTS:
-        return (
+        return ValidationResult(
+            ValidationStatus.ERROR,
             f"Please use {config.MAX_INPUT_TEXTS} texts or fewer. "
-            f"You entered {len(texts)} texts."
+            f"You entered {len(texts)} texts.",
         )
 
-    token_stats = state.update_token_stats(analyzer, texts, current_hash)
-    token_error = state.build_token_limit_error(token_stats)
-    if token_error:
-        return token_error
+    if st.session_state.get(state.STATE_ANALYSIS_HASH) == input_hash:
+        return ValidationResult(ValidationStatus.UP_TO_DATE, "Analysis is already up to date.")
 
-    if st.session_state.get(state.STATE_ANALYSIS_HASH) == current_hash:
-        return "Analysis is already up to date."
-
-    return None
+    return ValidationResult(ValidationStatus.OK)
 
 
 # ============================================================================
@@ -46,11 +62,21 @@ def _validate_input(texts, current_hash, analyzer):
 # ============================================================================
 
 
-def handle_analyze_click(texts, n_clusters, current_hash):
+def run_analysis(texts: list[str], n_clusters: int | None, input_hash: str | None) -> None:
+    result = _validate_input(texts, input_hash)
+
+    if result.status == ValidationStatus.UP_TO_DATE:
+        st.info(result.message)
+        return
+    if result.status == ValidationStatus.ERROR:
+        st.error(result.message)
+        return
+
     analyzer = state.get_analyzer(config.MODEL_NAME)
-    error = _validate_input(texts, current_hash, analyzer)
-    if error:
-        (st.info if "up to date" in error else st.error)(error)
+    token_stats = state.update_token_stats(analyzer, texts, input_hash)
+    token_error = state.build_token_limit_error(token_stats)
+    if token_error:
+        st.error(token_error)
         return
 
     with st.spinner("Analyzing..."):
@@ -58,10 +84,11 @@ def handle_analyze_click(texts, n_clusters, current_hash):
             analyzer.add_sentences(texts)
             analyzer.get_pca_coordinates()
             analyzer.get_cluster_labels(n_clusters)
-            st.session_state[state.STATE_ANALYSIS_HASH] = current_hash
+            st.session_state[state.STATE_ANALYSIS_HASH] = input_hash
             st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
-        except Exception as error:
-            st.error(f"Analysis failed: {error}")
+        except Exception as e:
+            logger.exception("Analysis failed")
+            st.error(f"Analysis failed: {e}")
 
 
 # ============================================================================
@@ -69,7 +96,11 @@ def handle_analyze_click(texts, n_clusters, current_hash):
 # ============================================================================
 
 
-def render_network_tab(analyzer, visualizer, threshold):
+def render_network_tab(
+    analyzer: SentenceAnalyzer,
+    visualizer: PlotlyVisualizer,
+    threshold: float,
+) -> None:
     """Render the similarity network graph and associated metrics."""
     network_figure, network_stats = visualizer.create_similarity_network(threshold=threshold)
     ui.show_chart(network_figure)
@@ -87,7 +118,7 @@ def render_network_tab(analyzer, visualizer, threshold):
     ui.render_metrics_grid(config.METRIC_DESCRIPTIONS["network"], values)
 
 
-def render_clusters_tab(analyzer, visualizer):
+def render_clusters_tab(analyzer: SentenceAnalyzer, visualizer: PlotlyVisualizer) -> None:
     """Render the cluster visualization, metrics, and per-cluster text lists."""
     ui.show_chart(visualizer.create_cluster_visualization())
 
@@ -119,7 +150,12 @@ def render_clusters_tab(analyzer, visualizer):
 # ============================================================================
 
 
-def _render_results(texts, n_clusters, current_hash, threshold):
+def _render_results(
+    texts: list[str],
+    n_clusters: int | None,
+    input_hash: str | None,
+    threshold: float,
+) -> None:
     """Check analysis state and render result tabs if ready."""
     analyzer = st.session_state.get(state.STATE_ANALYZER)
     analysis_hash = st.session_state.get(state.STATE_ANALYSIS_HASH)
@@ -127,7 +163,7 @@ def _render_results(texts, n_clusters, current_hash, threshold):
     if analyzer is None or analysis_hash is None:
         return
 
-    if current_hash != analysis_hash:
+    if input_hash != analysis_hash:
         msg = ("Input is empty. Enter texts and click Analyze to see results."
                if not texts else
                "Input or model changed. Click Analyze to refresh results.")
@@ -138,8 +174,9 @@ def _render_results(texts, n_clusters, current_hash, threshold):
         try:
             analyzer.get_cluster_labels(n_clusters)
             st.session_state[state.STATE_CLUSTER_COUNT] = n_clusters
-        except Exception as error:
-            st.error(f"Re-clustering failed: {error}. Click Analyze to recompute.")
+        except Exception as e:
+            logger.exception("Re-clustering failed")
+            st.error(f"Re-clustering failed: {e}. Click Analyze to recompute.")
             return
 
     visualizer = PlotlyVisualizer(analyzer)
@@ -157,7 +194,7 @@ def _render_results(texts, n_clusters, current_hash, threshold):
         ui.show_chart(visualizer.create_top_pairs_chart(n_pairs=10))
 
 
-def main():
+def main() -> None:
     st.markdown(styles.FONT_AWESOME_CDN, unsafe_allow_html=True)
     st.markdown(styles.CUSTOM_CSS, unsafe_allow_html=True)
     ui.fa_heading("magnifying-glass-chart", "Similyzer", level=1)
@@ -178,10 +215,10 @@ def main():
 
     body_left, body_right = st.columns([3, 1])
     with body_left:
-        raw_input = ui.render_text_area()
+        raw_text = ui.render_text_area()
 
-    texts = utils.parse_texts(raw_input)
-    current_hash = utils.compute_content_hash(config.MODEL_NAME, texts)
+    texts = utils.parse_texts(raw_text)
+    input_hash = utils.compute_content_hash(config.MODEL_NAME, texts)
 
     with body_right:
         stats_placeholder = st.empty()
@@ -189,12 +226,12 @@ def main():
     analyze_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     if analyze_clicked:
-        handle_analyze_click(texts, n_clusters, current_hash)
+        run_analysis(texts, n_clusters, input_hash)
 
     with stats_placeholder.container():
-        ui.render_stats_panel(texts, current_hash)
+        ui.render_stats_panel(texts, input_hash)
 
-    _render_results(texts, n_clusters, current_hash, threshold)
+    _render_results(texts, n_clusters, input_hash, threshold)
 
 
 if __name__ == "__main__":
