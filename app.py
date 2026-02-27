@@ -218,7 +218,7 @@ def main() -> None:
         raw_text = ui.render_text_area()
 
     texts = utils.parse_texts(raw_text)
-    input_hash = utils.compute_content_hash(config.MODEL_NAME, texts)
+    input_hash = utils.compute_input_hash(config.MODEL_NAME, texts)
 
     with body_right:
         stats_placeholder = st.empty()
