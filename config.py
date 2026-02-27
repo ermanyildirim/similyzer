@@ -1,4 +1,4 @@
-from collections import namedtuple
+from typing import NamedTuple
 
 # ============================================================================
 # Model Configuration
@@ -25,7 +25,7 @@ RANDOM_SEED = 42
 # Plotly Configuration
 # ============================================================================
 
-PLOTLY_CONFIG = {
+PLOTLY_CONFIG: dict = {
     "displayModeBar": True,
     "displaylogo": False,
     "modeBarButtonsToRemove": ["select2d", "lasso2d"],
@@ -37,7 +37,8 @@ PLOTLY_CONFIG = {
 # Sample Data
 # ============================================================================
 
-SAMPLE_TEXTS = """Barcelona is a popular travel destination with its stunning architecture and dynamic atmosphere.
+SAMPLE_TEXTS = """\
+Barcelona is a popular travel destination with its stunning architecture and dynamic atmosphere.
 Tokyo is a fascinating travel destination where tradition and innovation meet.
 The United States of America offers a wide variety of travel experiences.
 Antalya is one of the most popular tourist destinations in Turkey.
@@ -48,15 +49,20 @@ The atmosphere in the stadium during a big match can be electric.
 Experimenting with different charts makes it easier to reveal hidden insights.
 Data visualization is an effective technique to understand complex information."""
 
-TAB_LABELS = ["🌐 Network", "⚛️ Clusters", "🏆 Top Pairs"]
+TAB_LABELS = ("🌐 Network", "⚛️ Clusters", "🏆 Top Pairs")
 
 # ============================================================================
 # Metric Descriptions
 # ============================================================================
 
-MetricDescription = namedtuple("MetricDescription", ["label", "fmt", "help"])
 
-METRIC_DESCRIPTIONS = {
+class MetricDescription(NamedTuple):
+    label: str
+    fmt: str
+    help: str | None = None
+
+
+METRIC_DESCRIPTIONS: dict[str, list[MetricDescription]] = {
     "network": [
         MetricDescription(
             "Average pair cosine similarity", ".3f",
@@ -90,9 +96,9 @@ METRIC_DESCRIPTIONS = {
         ),
     ],
     "cluster_overview": [
-        MetricDescription("Number of clusters:", "", None),
-        MetricDescription("Smallest cluster size:", "", None),
-        MetricDescription("Largest cluster size:", "", None),
+        MetricDescription("Number of clusters:", ""),
+        MetricDescription("Smallest cluster size:", ""),
+        MetricDescription("Largest cluster size:", ""),
     ],
     "cluster_detail": [
         MetricDescription(
