@@ -1,5 +1,8 @@
-import streamlit as st
+from typing import TypedDict
+
 import numpy as np
+import streamlit as st
+from sentence_transformers import SentenceTransformer
 
 import config
 from analyzer import SentenceAnalyzer
@@ -24,12 +27,24 @@ _STATE_DEFAULTS = {
     STATE_TOKEN_STATS_HASH: None,
 }
 
-_INVALIDATION_KEYS = [
+_INVALIDATION_KEYS = (
     STATE_ANALYSIS_HASH,
     STATE_CLUSTER_COUNT,
     STATE_TOKEN_STATS,
     STATE_TOKEN_STATS_HASH,
-]
+)
+
+
+# ============================================================================
+# Structured Return Types
+# ============================================================================
+
+
+class TokenStats(TypedDict):
+    max_tokens: int
+    model_max: int
+    too_long_lines: list[int]
+    max_line_indices: list[int]
 
 
 # ============================================================================
@@ -37,17 +52,17 @@ _INVALIDATION_KEYS = [
 # ============================================================================
 
 
-def init_state():
+def init_state() -> None:
     for key, default in _STATE_DEFAULTS.items():
         st.session_state.setdefault(key, default)
 
 
-def invalidate_analysis_state():
+def invalidate_analysis_state() -> None:
     for key in _INVALIDATION_KEYS:
         st.session_state[key] = None
 
 
-def get_analyzer(model_name):
+def get_analyzer(model_name: str) -> SentenceAnalyzer:
     """Get or create a cached analyzer instance for the model."""
     analyzer = st.session_state.get(STATE_ANALYZER)
 
@@ -64,8 +79,8 @@ def get_analyzer(model_name):
 # ============================================================================
 
 
-def _compute_token_stats(model, texts):
-    model_max = model.max_seq_length or 0 # to avoid None for some models
+def _compute_token_stats(model: SentenceTransformer, texts: list[str]) -> TokenStats:
+    model_max = model.max_seq_length or 0
     tokenizer = model.tokenizer
     token_lengths = np.array([
         len(tokenizer.encode(t, add_special_tokens=True))
@@ -83,22 +98,24 @@ def _compute_token_stats(model, texts):
     }
 
 
-def update_token_stats(analyzer, texts, current_hash):
+def update_token_stats(
+    analyzer: SentenceAnalyzer, texts: list[str], input_hash: str | None,
+) -> TokenStats:
     """Compute and cache token statistics."""
     cached_hash = st.session_state.get(STATE_TOKEN_STATS_HASH)
     cached_stats = st.session_state.get(STATE_TOKEN_STATS)
 
-    if cached_hash == current_hash and cached_stats is not None:
+    if cached_hash == input_hash and cached_stats is not None:
         return cached_stats
 
     stats = _compute_token_stats(analyzer.model, texts)
 
     st.session_state[STATE_TOKEN_STATS] = stats
-    st.session_state[STATE_TOKEN_STATS_HASH] = current_hash
+    st.session_state[STATE_TOKEN_STATS_HASH] = input_hash
     return stats
 
 
-def build_token_limit_error(token_stats):
+def build_token_limit_error(token_stats: TokenStats | None) -> str | None:
     if not token_stats or token_stats["model_max"] <= 0 or not token_stats["too_long_lines"]:
         return None
 
