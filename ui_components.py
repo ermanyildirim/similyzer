@@ -1,8 +1,12 @@
-import streamlit as st
 from itertools import batched
+
+import plotly.graph_objects as go
+import streamlit as st
 
 import config
 import state
+from config import MetricDescription
+from state import TokenStats
 
 
 # ============================================================================
@@ -10,12 +14,12 @@ import state
 # ============================================================================
 
 
-def show_chart(figure):
+def show_chart(figure: go.Figure) -> None:
     """Display a Plotly figure with consistent container and config settings."""
     st.plotly_chart(figure, use_container_width=True, config=config.PLOTLY_CONFIG)
 
 
-def fa_heading(icon, text, level=3):
+def fa_heading(icon: str, text: str, level: int = 3) -> None:
     """Render a Font Awesome icon heading, centered."""
     st.markdown(
         f"<h{level} style='text-align:center;'>"
@@ -25,7 +29,7 @@ def fa_heading(icon, text, level=3):
     )
 
 
-def format_metric(value, fmt=".3f"):
+def _format_metric(value: float | str | None, fmt: str = ".3f") -> str:
     """Format a metric value for display, returning 'N/A' if None."""
     if value is None:
         return "N/A"
@@ -34,12 +38,14 @@ def format_metric(value, fmt=".3f"):
     return f"{value:{fmt}}"
 
 
-def render_metrics_grid(descriptions, values, columns=2):
+def render_metrics_grid(
+    descriptions: list[MetricDescription], values: list[float | str | None], columns: int = 2,
+) -> None:
     for chunk in batched(zip(descriptions, values), columns):
         cols = st.columns(columns)
         for col, (desc, value) in zip(cols, chunk):
             with col:
-                st.metric(desc.label, format_metric(value, desc.fmt), help=desc.help)
+                st.metric(desc.label, _format_metric(value, desc.fmt), help=desc.help)
 
 
 # ============================================================================
@@ -47,7 +53,7 @@ def render_metrics_grid(descriptions, values, columns=2):
 # ============================================================================
 
 
-def render_sidebar_controls():
+def render_sidebar_controls() -> tuple[int | None, float]:
     """Render sidebar controls and return user settings."""
     with st.sidebar:
         st.markdown(
@@ -76,7 +82,7 @@ def render_sidebar_controls():
             key="threshold",
         )
 
-    return (n_clusters, threshold)
+    return n_clusters, threshold
 
 
 # ============================================================================
@@ -84,7 +90,7 @@ def render_sidebar_controls():
 # ============================================================================
 
 
-def render_input_actions(sample_text):
+def render_input_actions(sample_texts: str) -> None:
     _, load_col, clear_col = st.columns([8, 3, 3])
 
     with load_col:
@@ -105,7 +111,7 @@ def render_input_actions(sample_text):
         )
 
     if load_clicked:
-        st.session_state[state.STATE_INPUT_TEXT] = sample_text
+        st.session_state[state.STATE_INPUT_TEXT] = sample_texts
         state.invalidate_analysis_state()
 
     if clear_clicked:
@@ -118,7 +124,7 @@ def render_input_actions(sample_text):
 # ============================================================================
 
 
-def render_text_area():
+def render_text_area() -> str:
     placeholder = (
         "Type your texts here. Each non-empty line is treated as one text input."
     )
@@ -137,7 +143,7 @@ def render_text_area():
 # ============================================================================
 
 
-def _build_token_note(token_stats, model_max):
+def _build_token_note(token_stats: TokenStats, model_max: int) -> str:
     parts = []
 
     if model_max > 0:
@@ -153,7 +159,7 @@ def _build_token_note(token_stats, model_max):
     return " • ".join(parts) or "&nbsp;"
 
 
-def render_stats_panel(texts, current_hash):
+def render_stats_panel(texts: list[str], input_hash: str | None) -> None:
     st.metric("Number of texts:", len(texts))
     word_count = sum(len(t.split()) for t in texts)
     st.metric("Total words:", word_count)
@@ -161,7 +167,7 @@ def render_stats_panel(texts, current_hash):
     token_stats = st.session_state.get(state.STATE_TOKEN_STATS)
     token_hash = st.session_state.get(state.STATE_TOKEN_STATS_HASH)
 
-    if not (token_stats and token_hash == current_hash):
+    if not (token_stats and token_hash == input_hash):
         st.metric("Maximum tokens per line:", "—")
         st.markdown("<div class='token-line-note'>&nbsp;</div>", unsafe_allow_html=True)
         return
