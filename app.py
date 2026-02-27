@@ -81,7 +81,7 @@ def run_analysis(texts: list[str], n_clusters: int | None, input_hash: str | Non
 
     with st.spinner("Analyzing..."):
         try:
-            analyzer.add_sentences(texts)
+            analyzer.set_sentences(texts)
             analyzer.get_pca_coordinates()
             analyzer.get_cluster_labels(n_clusters)
             st.session_state[state.STATE_ANALYSIS_HASH] = input_hash
