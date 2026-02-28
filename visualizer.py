@@ -36,6 +36,7 @@ class PlotlyVisualizer:
     # ====================================================================
 
     _EDGE_COLOR = "102,126,234"
+    _EDGE_BUCKETS = 5
     _EDGE_MIN_OPACITY = 0.25
     _EDGE_MAX_OPACITY = 0.70
     _EDGE_MIN_WIDTH = 1.0
@@ -291,28 +292,44 @@ class PlotlyVisualizer:
         node_y: np.ndarray,
         threshold: float,
     ) -> tuple[list[go.Scatter], go.Scatter]:
-        """Build per-edge line traces with individual width and opacity."""
+        """Build edge traces grouped by visual strength buckets."""
         n = similarity.shape[0]
         sources, targets = np.triu_indices(n, k=1)
         sims = similarity[sources, targets]
         mask = adjacency[sources, targets] > 0
 
-        if not np.any(mask):
-            empty = go.Scatter(x=[], y=[], mode="markers", hoverinfo="text", showlegend=False)
+        if not mask.any():
+            empty = go.Scatter(x=[], y=[], mode="markers", hoverinfo="skip", showlegend=False)
             return [empty], empty
 
         sources, targets, sims = sources[mask], targets[mask], sims[mask]
 
-        span = max(1e-9, 1.0 - threshold)
-        strength = np.clip((sims - threshold) / span, 0.0, 1.0)
+        # Normalize edge strengths to 0–1 within the visible range.
+        strength = np.clip((sims - threshold) / max(1.0 - threshold, 1e-9), 0.0, 1.0)
+        buckets = np.clip(
+            (strength * self._EDGE_BUCKETS).astype(int), 0, self._EDGE_BUCKETS - 1,
+        )
+
+        opacity_range = self._EDGE_MAX_OPACITY - self._EDGE_MIN_OPACITY
+        width_range = self._EDGE_MAX_WIDTH - self._EDGE_MIN_WIDTH
 
         edge_traces: list[go.Scatter] = []
-        for (s, t), w in zip(zip(sources, targets), strength):
-            opacity = self._EDGE_MIN_OPACITY + w * (self._EDGE_MAX_OPACITY - self._EDGE_MIN_OPACITY)
-            width = self._EDGE_MIN_WIDTH + w * (self._EDGE_MAX_WIDTH - self._EDGE_MIN_WIDTH)
+        for bucket in range(self._EDGE_BUCKETS):
+            members = buckets == bucket
+            if not members.any():
+                continue
+
+            ratio = (bucket + 0.5) / self._EDGE_BUCKETS
+            opacity = self._EDGE_MIN_OPACITY + ratio * opacity_range
+            width = self._EDGE_MIN_WIDTH + ratio * width_range
+
+            source_x, target_x = node_x[sources[members]], node_x[targets[members]]
+            source_y, target_y = node_y[sources[members]], node_y[targets[members]]
+            edge_x = np.column_stack([source_x, target_x, np.full(source_x.size, np.nan)]).ravel()
+            edge_y = np.column_stack([source_y, target_y, np.full(source_y.size, np.nan)]).ravel()
+
             edge_traces.append(go.Scatter(
-                x=[node_x[s], node_x[t], None],
-                y=[node_y[s], node_y[t], None],
+                x=edge_x, y=edge_y,
                 mode="lines", hoverinfo="skip", showlegend=False,
                 line={"width": width, "color": f"rgba({self._EDGE_COLOR},{opacity:.2f})"},
             ))
