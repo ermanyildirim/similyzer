@@ -17,8 +17,8 @@ class NodeStats(TypedDict):
     avg_similarity: list[float]
     max_similarity: list[float]
     sizes: list[float]
-    avg_degree: float
-    density: float
+    avg_degree: float | None
+    density: float | None
     top_nodes: list[tuple[int, int]]
 
 
@@ -106,7 +106,7 @@ class PlotlyVisualizer:
         """Build an interactive similarity network graph and return (figure, stats)."""
         empty_stats: NodeStats = {
             "avg_similarity": [], "max_similarity": [], "sizes": [],
-            "avg_degree": 0.0, "density": 0.0, "top_nodes": [],
+            "avg_degree": None, "density": None, "top_nodes": [],
         }
 
         if len(self.analyzer.sentences) == 1:
@@ -248,6 +248,7 @@ class PlotlyVisualizer:
         return adjacency
 
     def _compute_node_stats(self, similarity: np.ndarray, adjacency: np.ndarray) -> NodeStats:
+        """Compute per-node statistics and global network metrics."""
         n = similarity.shape[0]
 
         if n <= 1:
@@ -255,8 +256,8 @@ class PlotlyVisualizer:
                 "avg_similarity": [0.0],
                 "max_similarity": [0.0],
                 "sizes": [self._NODE_SIZE_BASE + self._NODE_SIZE_SCALE],
-                "avg_degree": 0.0,
-                "density": 0.0,
+                "avg_degree": None,
+                "density": None,
                 "top_nodes": [],
             }
 

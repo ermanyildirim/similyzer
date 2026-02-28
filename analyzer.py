@@ -127,11 +127,11 @@ class SentenceAnalyzer:
             self._cache.top_pairs = util.paraphrase_mining_embeddings(self.get_embeddings())
         return self._cache.top_pairs
 
-    def get_pairwise_stats(self) -> tuple[float, float, float]:
+    def get_pairwise_stats(self) -> tuple[float | None, float | None, float | None]:
         """Return (mean, min, max) of upper-triangle similarities."""
         sims = upper_triangle(self.get_similarity_matrix())
         if sims.size == 0:
-            return 0.0, 0.0, 0.0
+            return None, None, None
         return float(sims.mean()), float(sims.min()), float(sims.max())
 
     # ====================================================================

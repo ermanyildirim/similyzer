@@ -111,7 +111,7 @@ def render_network_tab(
     avg_sim, min_sim, max_sim = analyzer.get_pairwise_stats()
 
     top_nodes = network_stats["top_nodes"]
-    top_nodes_display = ", ".join(f"{n} ({d})" for n, d in top_nodes) if top_nodes else "None"
+    top_nodes_display = ", ".join(f"{n} ({d})" for n, d in top_nodes) if top_nodes else None
 
     values = [avg_sim, max_sim, min_sim, network_stats["avg_degree"],
               network_stats["density"], top_nodes_display]
